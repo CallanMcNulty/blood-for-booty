@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Blood for Booty</title>
+	<style> * { box-sizing: border-box; } </style>
+</head>
+<body style="margin:0; display:flex; font-family:cursive; color:rgba(50,0,0,.8);">
+<div style="height:100vh; width:20rem; padding:1rem; display:flex; flex-direction:column; background-color:#222; color:white;">
+	<div id="crew" style="overflow-y:auto; margin-bottom:auto;"></div>
+	<!-- <div style="text-align:center; font-size:10rem; font-family:monospace; margin:-2rem;">☠</div> -->
+</div>
+<div style="flex-grow:1; display:flex; flex-direction:column;">
+	<div style="background-color:maroon; color:white; padding:1rem; font-size:1.2rem;">
+		<span>Grog: <span id="grog">0</span></span>
+		<span>Booty: <span id="booty">0</span></span>
+		<span>Heading: <span id="heading">Island</span></span>
+	</div>
+	<div style="flex-grow:1; position:relative; background-color:moccasin;">
+		<div style="padding:2rem; position:absolute; top:0; left:0; width:100%; height:100%;">
+			<div id="log" style="max-height:100%; overflow:auto;"></div>
+		</div>
+		<div id="chooser" style="
+			display:none;
+			position:absolute; top:0; width:100%;
+			padding:2rem; text-align:center; font-size:2rem;
+			background-color:inherit;
+		">
+			<div id="prompt">Prompt</div>
+			<div id="options" style="font-size:1.5rem; padding:2rem;"></div>
+			<button id="continue-button"
+				style="
+					background:none;
+					color:inherit;
+					font-size:inherit;
+					font-family:inherit;
+					border:.1rem solid;
+					padding:.2em .5em;
+					cursor:pointer;
+				"
+			>Continue</button>
+		</div>
+	</div>
+</div>
+
+<script src="names.js"></script>
+<script src="hairstyles.js"></script>
+<script>
+function inflate(html) {
+	var template = document.createElement('template');
+	html = html.trim();
+	template.innerHTML = html;
+	return template.content.firstChild;
+}
+
+function clear(el) {
+	while(el.firstChild) {
+		el.removeChild(el.firstChild);
+	}
+}
+
+function updateCrewList() {
+	let holder = document.getElementById('crew');
+	// remove access pirates from list
+	while(holder.children.length > crew.length) {
+		holder.removeChild(holder.children[holder.children.length-1]);
+	}
+	for(let i=0; i<crew.length; i++) {
+		let pirate = crew[i];
+		let element = holder.children[i]; // try to re-use existing elements where possible
+		let nameText = getPirateName(pirate);
+		let attributeText = pirate.attributes.map(attr => attr.name).join(', ');
+		if(element) {
+			element.getElementsByClassName('name')[0].textContent = nameText;
+			element.getElementsByClassName('attribute-list')[0].textContent = attributeText;
+		} else {
+			// create new element if there aren't enough existing ones
+			element = inflate(`
+				<div style="display:flex; align-items:center; margin-bottom:1rem;">
+					<object class="graphic" type="image/svg+xml" data="pirate.svg" style="height:6rem; opacity:0;">pirate graphic</object>
+					<div style="margin-left:1rem;">
+						<div class="name" style="font-weight:bold;">${nameText}</div>
+						<div class="attribute-list">${attributeText}</div>
+					</div>
+				</div>
+			`);
+			holder.appendChild(element);
+		}
+		let graphic = element.getElementsByClassName('graphic')[0];
+		if(graphic.style.opacity == 1) { // if opacity is 1, that means the svg has loaded, so we can just update it
+			updatePirateEl(pirate, graphic.contentDocument);
+		} else { // otherwise, we need to wait for the svg to load first
+			graphic.addEventListener('load', () => {
+				updatePirateEl(pirate, graphic.contentDocument);
+				graphic.style.opacity = 1;
+			}, false);
+		}
+	}
+}
+
+function setSvgElVisibility(el, visible) {
+	el.style.display = visible ? 'inline' : 'none';
+}
+
+function updatePirateEl(pirate, el) {
+	let elementIdAttributePairs = [
+		['sabre', skill.swashbucklin],
+		['hat', skill.swaggerin],
+		['treasure', skill.stealin],
+		['pistol', skill.shootin],
+		['parrot', feature.parrot],
+		['single-tooth', feature.toothless],
+		['eyepatch', feature.eyepatch],
+		['beard', feature.beard],
+		['peg-leg', feature.pegLeg],
+		['hook', feature.hook],
+		['left-hook', feature.leftHook],
+		['tattoos', feature.tattoos],
+		['monkey', feature.monkey],
+		['sick-bubbles', flaw.seasick],
+		['drunk-blush', flaw.swigger],
+		['nose-dirt', flaw.scummy],
+		['face-dirt', flaw.scummy],
+		['arm-dirt', flaw.scummy],
+		['bruise', flaw.scrapper],
+	];
+	for(let pair of elementIdAttributePairs) {
+		setSvgElVisibility(el.getElementById(pair[0]), hasAttribute(pirate, pair[1]));
+	}
+	let hiddenElementIdAttributePairs = [
+		['hand', feature.hook],
+		['left-hand', feature.leftHook],
+		['left-boot', feature.pegLeg],
+		['nose', feature.noNose],
+		['teeth', feature.toothless],
+		['eyebrows', flaw.scaredy],
+	];
+	for(let pair of hiddenElementIdAttributePairs) {
+		setSvgElVisibility(el.getElementById(pair[0]), !hasAttribute(pirate, pair[1]));
+	}
+	let eyes = [ el.getElementById('eye'), el.getElementById('left-eye') ];
+	let targetColor = hasAttribute(pirate, feature.blind) ? 'white' : 'black';
+	for(let eyeEl of eyes) {
+		eyeEl.style.fill = targetColor;
+	}
+	let mouth = el.getElementById('full-mouth');
+	mouth.style.transform = hasAttribute(pirate, flaw.scaredy) ? 'scale(1, -1) translateY(-85%)' : '';
+	let topClothes = [ el.getElementById('shirt'), el.getElementById('bandanna') ];
+	for(let topEl of topClothes) {
+		topEl.style.fill = pirate.colors[1];
+	}
+	el.getElementById('pants').style.fill = pirate.colors[2];
+	for(let hairId of hairIds) {
+		el.getElementById(hairId).style.fill = pirate.colors[0];
+	}
+	for(let hairId of hairParts) {
+		let shown = pirate.hair.parts.includes(hairId) &&
+			!(hasAttribute(pirate, skill.swaggerin) && (hairId == 'hair-poof' || hairId == 'hair-curly-back'))
+		;
+		setSvgElVisibility(el.getElementById(hairId), shown);
+	}
+}
+
+function updateTopBar() {
+	document.getElementById('grog').textContent = grog;
+	document.getElementById('booty').textContent = booty;
+	document.getElementById('heading').textContent = headingToIsland ? 'Island' : 'Port';
+}
+
+async function addToLog(message, wait = 1000) {
+	return new Promise(resolve => {
+		let logEl = document.getElementById('log');
+		console.log(logEl);
+		let entry = inflate(`<div>${message}</div>`);
+		logEl.appendChild(entry);
+		entry.scrollIntoView({ behavior: "smooth", block: "end" });
+		window.setTimeout(resolve, wait);
+	});
+}
+
+async function getChoice(prompt, options, exact=true, number=null, auto=false) {
+	if(number == null && exact) {
+		number = 1; // default to 1 ONLY for exact value choices
+	}
+	if(auto || (options.length == number && exact) || (options.length == 1 && !exact)) {
+		let selected = [];
+		while(selected.length < number && selected.length < options.length) {
+			selected.push(randomResult(options, selected));
+		}
+		let values = selected.map(opt => opt.value);
+		return number == 1 ? values[0] : values;
+	}
+	let interface = document.getElementById('chooser');
+	interface.style.display = 'block';
+	let promptEl = document.getElementById('prompt');
+	promptEl.textContent = prompt;
+	let optionHolder = document.getElementById('options');
+	clear(optionHolder);
+	options.forEach(opt => {
+		let optEl = inflate(`
+			<div style="cursor:pointer;">
+				<span class="selected-indicator">${opt.selected ? '✔' : ''}</span>
+				<span>${opt.text}</span>
+			</div>
+		`);
+		optionHolder.appendChild(optEl);
+		optEl.addEventListener('click', () => {
+			opt.selected = !opt.selected;
+			optEl.getElementsByClassName("selected-indicator")[0].textContent = opt.selected ? '✔' : '';
+		});
+	});
+	let button = document.getElementById('continue-button');
+	return new Promise((resolve, reject) => {
+		let listenerName = 'click';
+		let listener = event => {
+			let selected = options.filter(opt => opt.selected);
+			if(selected.length == number || (!exact && (number == null || selected.length < number))) {
+				interface.style.display = 'none';
+				let values = selected.map(opt => opt.value);
+				button.removeEventListener(listenerName, listener);
+				resolve(number == 1 ? values[0] : values);
+			}
+		};
+		button.addEventListener(listenerName, listener);
+	});
+}
+
+function pirateToOption(pirate, selected = false) {
+	return { value:pirate, text:getPirateName(pirate), selected:selected };
+}
+
+function pirateOptions(pirateGroup) {
+	return pirateGroup.map(p => pirateToOption(p));
+}
+
+
+
+class Pirate {
+	constructor(name) {
+		this.name = name;
+		this.job = null;
+		this.explorer = null;
+		this.captain = false;
+		this.alive = true;
+		this.attributes = [];
+		this.rivals = new Set();
+		this.weeklyFlags = new Set();
+		this.voyageFlags = new Set();
+		this.permanentFlags = new Set();
+		this.nickname = null;
+		this.appellation = null;
+		this.hair = {parts:[]};
+		this.colors = [];
+	}
+}
+
+function randomInt(limit) {
+	return Math.floor(Math.random()*limit);
+}
+
+function roll() {
+	return randomInt(6)+1;
+}
+
+function randomResult(array, exclude=[]) {
+	let availableItems = array.filter(item => !exclude.includes(item));
+	return availableItems[randomInt(availableItems.length)];
+}
+
+function getPirateName(pirate) {
+	let legend = pirate.attributes.find(a => attributeIsLegend(a));
+	let appellation = pirate.appellation || (legend ? legend.name : '');
+	let nickname = pirate.nickname;
+	if(hasAttribute(pirate, feature.blind) && hasAttribute(pirate, feature.noNose)) {
+		nickname = 'Senseless';
+	}
+	if(hasAttribute(pirate, feature.hook) && hasAttribute(pirate, feature.leftHook)) {
+		nickname = 'Hooks';
+	}
+	if(hasAttribute(pirate, feature.eyepatch) && hasAttribute(pirate, feature.pegLeg) && hasAttribute(pirate, feature.leftHook)) {
+		nickname = 'Half';
+	}
+	if(pirate.colors[0] == 'silver' && (hasAttribute(pirate, feature.blind) || hasAttribute(pirate, feature.beard) || hasAttribute(pirate, feature.toothless))) {
+		nickname = 'Old';
+	}
+	if(pirate.voyageFlags.has('jig_king')) {
+		nickname = 'Jig King';
+	}
+	let names = [];
+	if(pirate.captain) {
+		names.push('Captain');
+	}
+	if(nickname) {
+		names.push(nickname);
+	}
+	names.push(pirate.name);
+	if(appellation) {
+		names.push(appellation);
+	}
+	return names.join(' ');
+}
+
+function incrementGrog(value) {
+	let remainingGrog = grog + value;
+	grog = Math.max(remainingGrog, 0);
+	updateTopBar();
+	return remainingGrog;
+}
+
+function incrementBooty(value) {
+	if(value > 0 && filterByAttr(crew, legend.plunderer).length) {
+		value += roll();
+	}
+	let remainingBooty = booty + value;
+	booty = Math.max(remainingBooty, 0);
+	updateTopBar();
+	return remainingBooty;
+}
+
+function getCaptain() {
+	return crew.find(p => p.captain);
+}
+
+async function assignCaptain(newCaptain) {
+	let oldCaptain = getCaptain();
+	if(oldCaptain) {
+		oldCaptain.captain = false;
+		oldCaptain.job = null;
+	}
+	newCaptain.captain = true;
+	newCaptain.job = 'helm';
+	await addToLog(`Crew is now led by ${getPirateName(newCaptain)}`); 
+}
+
+async function kill(pirate, literal = false) {
+	let name = getPirateName(pirate);
+	if(literal && hasAttribute(pirate, legend.bloody) && roll() > 3) {
+		await addToLog(`${name} escaped death`)
+		return false;
+	}
+	pirate.alive = !literal;
+	crew = crew.filter(p => p != pirate);
+	console.log(`${name} is no longer in the crew`);
+	if(crew.length == 0) {
+		throw new Error('NO_CREW');
+	}
+	if(pirate.captain) {
+		await pickNewCaptain();
+	}
+	updateCrewList();
+	return true;
+}
+
+async function pickNewCaptain() {
+	let legendaryPirates = crew.filter(p => p.attributes.some(attr => attributeIsLegend(attr)));
+	let possibleCaptains = legendaryPirates.length ? legendaryPirates : crew;
+	updateCrewList();
+	let newCaptain = await getChoice('Who will be the new captain?', pirateOptions(possibleCaptains));
+	await assignCaptain(newCaptain);
+}
+
+function attributeIsSkill(attr) {
+	return Object.values(skill).includes(attr);
+}
+function attributeIsFlaw(attr) {
+	return Object.values(flaw).includes(attr);
+}
+function attributeIsLegend(attr) {
+	return Object.values(legend).includes(attr);
+}
+
+function skillValue(pirateGroup, usedSkill) {
+	return filterByAttr(pirateGroup, usedSkill).length;
+}
+
+function validateAttribute(pirate, attr) {
+}
+
+async function addAttribute(pirate, attr) {
+	const addingSkill = attributeIsSkill(attr);
+	const addingFlaw = attributeIsFlaw(attr);
+	if(
+		hasAttribute(pirate, attr) ||
+		(addingSkill && pirate.attributes.filter(a => attributeIsSkill(a)).length > 1) ||
+		(addingFlaw && pirate.attributes.filter(a => attributeIsFlaw(a)).length > 1)
+	) {
+		return;
+	}
+	// add it
+	pirate.attributes.push(attr);
+	updateCrewList();
+	await addToLog(`${getPirateName(pirate)} gained ${attr.name}`);
+	// check for legendary pirate status
+	if(addingSkill) {
+		let skills = pirate.attributes.filter(a => attributeIsSkill(a));
+		if(skills.length == 2) {
+			let earnedLegend = null;
+			if(skills.includes(skill.swashbucklin)) {
+				if(skills.includes(skill.swaggerin)) {
+					earnedLegend = legend.terrible;
+				} else if(skills.includes(skill.stealin)) {
+					earnedLegend = legend.backstabber;
+				} else if(skills.includes(skill.shootin)) {
+					earnedLegend = legend.bloody;
+				}
+			} else if(skills.includes(skill.swaggerin)) {
+				if(skills.includes(skill.stealin)) {
+					earnedLegend = legend.bastard;
+				} else if(skills.includes(skill.shootin)) {
+					earnedLegend = legend.killer;
+				}
+			} else if(skills.includes(skill.stealin) && skills.includes(skill.shootin)) {
+				earnedLegend = legend.plunderer;
+			}
+			if(!pirates.some(p => hasAttribute(p, earnedLegend) && p.alive)) {
+				pirate.attributes.push(earnedLegend);
+				updateCrewList();
+				await addToLog(`${getPirateName(pirate)} became a legendary pirate`);
+			}
+		}
+	}
+	await ensureUniqueness(pirate);
+}
+
+async function removeAttribute(pirate, attr) {
+	let idx = pirate.attributes.indexOf(attr);
+	if(idx > -1) {
+		pirate.attributes.splice(idx, 1);
+		await addToLog(`${getPirateName(pirate)} lost attribute ${attr.name}`);
+		await ensureUniqueness(pirate);
+	}
+	updateCrewList();
+}
+
+async function ensureUniqueness(pirate) {
+	while(pirates.some(other => {
+		return other.alive && other != pirate && other.attributes.length == pirate.attributes.length &&
+			pirate.attributes.every(a => hasAttribute(other, a))
+		;
+	})) {
+		await addAttribute(pirate, randomResult(featureTable));
+	}
+	return 0;
+}
+
+function hasAttribute(pirate, attr) {
+	return pirate.attributes.includes(attr);
+}
+
+function filterByAttr(pirateGroup, attr) {
+	return pirateGroup.filter(p => hasAttribute(p, attr));
+}
+
+async function rollSkill(pirate, alreadyRolled = null) {
+	let result = roll();
+	let chosenSkill = null;
+	switch(result) {
+		case 1:
+			return await rollFlaw(pirate);
+		case 2:
+			chosenSkill = skill.swashbucklin;
+			break;
+		case 3:
+			chosenSkill = skill.swaggerin;
+			break;
+		case 4:
+			chosenSkill = skill.stealin;
+			break;
+		case 5:
+			chosenSkill = skill.shootin;
+			break;
+		case 6:
+			if(!alreadyRolled) {
+				updateCrewList();
+				chosenSkill = await getChoice(
+					`${getPirateName(pirate)} needs a skill. What will it be?`, Object.values(skill).map(s => ({ value:s, text:s.name }))
+				);
+				await addAttribute(pirate, chosenSkill);
+				await rollSkill(pirate, chosenSkill);
+			} else {
+				chosenSkill = alreadyRolled;
+			}
+			break;
+	}
+	if(chosenSkill != alreadyRolled) {
+		await addAttribute(pirate, chosenSkill);
+		return chosenSkill;
+	} else {
+		return await rollFlaw(pirate);
+	}
+}
+
+async function rollFlaw(pirate) {
+	let result = roll();
+	let chosenFlaw;
+	switch(result) {
+		case 1:
+			chosenFlaw = flaw.scummy;
+			break;
+		case 2:
+			chosenFlaw = flaw.scaredy;
+			break;
+		case 3:
+			chosenFlaw = flaw.seasick;
+			break;
+		case 4:
+			chosenFlaw = flaw.swigger;
+			break;
+		case 5:
+			chosenFlaw = flaw.scrapper;
+			break;
+		case 6:
+			chosenFlaw = randomResult(featureTable);
+			break;
+	}
+	await addAttribute(pirate, chosenFlaw);
+	return chosenFlaw;
+}
+
+async function rollPirate() {
+	// name
+	do {
+		var name = randomResult(nameList);
+	} while(pirates.some(p => p.name == name));
+	// colors
+	let hairColor = randomResult(['brown', 'goldenrod', 'silver', 'darkorange', 'black']);
+	let clothingColors = ['beige', 'burlywood', 'cadetblue', 'rosybrown', 'mediumpurple', 'salmon', 'darkcyan', 'darkolivegreen', 'dodgerblue', 'cornflowerblue', 'darkseagreen'];
+	let shirtColor = randomResult(clothingColors);
+	do {
+		var pantsColor = randomResult(clothingColors);
+	} while(shirtColor == pantsColor);
+	let newPirate = new Pirate(name);
+	newPirate.colors = [hairColor, shirtColor, pantsColor];
+	newPirate.hair = randomResult(hairstyles);
+	// mechanical stuff
+	if(
+		crew.some(pirate => pirate.permanentFlags.has('hook_club')) &&
+		(hasAttribute(newPirate, feature.hook) || hasAttribute(newPirate, feature.leftHook))
+	) {
+		newPirate.permanentFlags.add('hook_club');
+	}
+	pirates.push(newPirate);
+	await addPirateToCrew(newPirate);
+	await rollSkill(newPirate);
+	return newPirate;
+}
+
+async function addPirateToCrew(newPirate) {
+	crew.push(newPirate);
+	updateCrewList();
+	await addToLog(`${getPirateName(newPirate)} joined the crew`);
+}
+
+function filterWorkers(workers) {
+	// nobody works while mast is broken
+	if(shipPermanentFlags.has('broken_mast')) {
+		return [];
+	}
+	// non-work flags
+	let filtered = workers.filter(w => !w.weeklyFlags.has('no_work') && !w.weeklyFlags.has('hurt_hand') && !doesNotDoAnything(w));
+	// scummy
+	if(workers.some(w => hasAttribute(w, flaw.scummy) || w.voyageFlags.has('beard_lice'))) {
+		filtered = filterByAttr(filtered, flaw.scummy);
+	}
+	// hook club
+	let hookClub = crew.filter(pirate => pirate.permanentFlags.has('hook_club'));
+	if(hookClub.some(pirate => !workers.includes(pirate))) {
+		filtered = filtered.filter(w => !hookClub.includes(pirate));
+	}
+	// rivals
+	filtered = filtered.filter(w => !filtered.some(other => w.rivals.has(other)));
+	return filtered;
+}
+
+function filterEventTargets(pirateGroup) {
+	return pirateGroup.filter(pirate => {
+		let scaredy = hasAttribute(pirate, flaw.scaredy) || pirate.voyageFlags.has('spooked');
+		return !scaredy || roll() > 3;
+	});
+}
+
+function filterEventActors(pirateGroup) {
+	return pirateGroup.filter(pirate => !doesNotDoAnything(pirate));
+}
+
+function doesNotDoAnything(pirate) {
+	return pirate.voyageFlags.has('boxed') || pirate.voyageFlags.has('gangrenous');
+}
+
+const skill = {
+	swashbucklin: { name: 'Swashbucklin’' },
+	swaggerin: { name: 'Swaggerin’' },
+	stealin: { name: 'Stealin’' },
+	shootin: { name: 'Shootin’' },
+};
+
+const flaw = {
+	scummy: { name: 'Scummy' },
+	scaredy: { name: 'Scaredy' },
+	seasick: { name: 'Seasick' },
+	swigger: { name: 'Swigger' },
+	scrapper: { name: 'Scrapper' },
+};
+
+const legend = {
+	terrible: { name: 'The Terrible' },
+	backstabber: { name: 'The Backstabber' },
+	bloody: { name: 'The Bloody' },
+	bastard: { name: 'The Bastard' },
+	killer: { name: 'The Killer' }, // TODO: respect this
+	plunderer: { name: 'The Plunderer' },
+};
+
+const feature = {
+	noNose: { name: 'No Nose' },
+	blind: { name: 'Blind' },
+	parrot: { name: 'Parrot' },
+	toothless: { name: 'Toothless' },
+	eyepatch: { name: 'Eyepatch' },
+	beard: { name: 'Beard' },
+	pegLeg: { name: 'Peg Leg' },
+	hook: { name: 'Hook' },
+	tattoos: { name: 'Tattoos' },
+	monkey: { name: 'Monkey' },
+	leftHook: { name: 'Lefty Hook' },
+	rat: { name: 'Rat' },
+	crab: { name: 'Crab' },
+	prettyDress: { name: 'Pretty Dress' },
+	crocophobia: { name: 'Crocophobia' },
+};
+
+const featureTable = [
+	feature.noNose,
+	feature.blind,
+	feature.parrot,
+	feature.toothless,
+	feature.eyepatch,
+	feature.beard,
+	feature.pegLeg,
+	feature.hook,
+	feature.tattoos,
+	feature.monkey,
+	feature.leftHook,
+];
+
+async function rollOnSobrietyTable(soberPirate) {
+	let event = soberPirateTable[randomInt(6)];
+	if(event) {
+		console.log('sober pirate event', soberPirate.name, event.name);
+		await event.handler(soberPirate);
+	}
+}
+
+async function mutiny(pirate) {
+	if(!pirate || crew.length < 2) {
+		return;
+	}
+	let victims = [];
+	if(pirate.captain) {
+		victims.push(randomResult(crew, [pirate]));
+	}
+	let result = roll() + skillValue([pirate], skill.swashbucklin);
+	if(result < 6) {
+		victims.push(pirate);
+	} else if(!pirate.captain) {
+		victims.push(getCaptain());
+		await assignCaptain(pirate);
+	}
+	for(let victim of victims) {
+		await kill(victim, true);
+	}
+}
+
+const soberPirateTable = [
+	{
+		name: 'Abandon Ship',
+		handler: async (pirate) => await kill(pirate, false)
+	},
+	{
+		name: 'Mutiny',
+		handler: mutiny
+	},
+	{
+		name: 'Go Berserk',
+		handler: async (pirate) => {
+			if(crew.length > 1) {
+				let victim = randomResult(crew, [pirate]);
+				await kill(victim, true);
+			}
+			await kill(pirate, true);
+		}
+	},
+];
+
+async function rollOnCaptainsMadnessTable() {
+	let event = randomResult(captainsMadnessTable);
+	await addToLog(`Captain's madness event: ${event.name}`);
+	await event.handler();
+}
+
+const captainsMadnessTable = [
+	{
+		name: 'Traitor Hunt!',
+		handler: async () => {
+			let cap = getCaptain();
+			if(doesNotDoAnything(cap)) {
+				return;
+			}
+			let availableCrew = filterEventTargets(crew);
+			for(let pirate of availableCrew) {
+				if(pirate == cap) {
+					continue;
+				}
+				let result = roll();
+				if(result == 1) {
+					await kill(pirate, true);
+				}
+			}
+		}
+	},
+	{
+		name: 'Drink!',
+		handler: async () => incrementGrog(-roll())
+	},
+	{
+		name: 'Deterioration',
+		handler: async () => {
+			let captain = getCaptain();
+			let startingAttributes = [...captain.attributes];
+			let rolledFlaw = await rollFlaw(captain);
+			if(startingAttributes.includes(rolledFlaw)) {
+				await kill(captain, true);
+			}
+		}
+	},
+	{
+		name: 'Homesick',
+		handler: async () => {
+			let cap = getCaptain();
+			if(doesNotDoAnything(cap)) {
+				return;
+			}
+			headingToIsland = false;
+			cap.voyageFlags.add('homesick');
+			cap.voyageFlags.add('no_heading_change');
+		}
+	},
+	{
+		name: 'Put on a Show!',
+		handler: async () => {
+			crew.forEach(pirate => pirate.job = 'helm');
+		}
+	},
+	{
+		name: 'Change of Heart',
+		handler: async () => {
+			let cap = getCaptain();
+			if(doesNotDoAnything(cap)) {
+				return;
+			}
+			headingToIsland = !headingToIsland;
+			cap.voyageFlags.add('no_heading_change');
+		}
+	},
+];
+
+async function brawl() {
+	let killers = filterEventActors(crew).filter(pirate => roll() + skillValue([pirate], skill.swashbucklin));
+	let availableVictims = filterEventTargets(crew);
+	while(killers.length > 1) {
+		let killer = randomResult(killers);
+		killers.splice(killers.indexOf(killer), 1);
+		let victim = randomResult(availableVictims, [killer]);
+		let dead = await kill(victim, true);
+		let victimIndex = killers.indexOf(victim)
+		if(dead && victimIndex > -1) {
+			killers.splice(victimIndex, 1);
+		}
+	}
+}
+
+async function rollScurvy() {
+	let contracted = crew.filter(
+		pirate => (hasAttribute(pirate, flaw.scummy) && pirate.voyageFlags.has('scurvy')) || roll() == 1
+	);
+	for(let pirate of contracted) {
+		if(pirate.voyageFlags.has('scurvy')) {
+			await kill(pirate, true);
+		} else {
+			pirate.voyageFlags.add('scurvy');
+		}
+	}
+}
+
+const crewEventTable = [
+	{
+		name: 'Thrown Overboard',
+		handler: async () => {
+			let overboard = filterEventTargets(crew).filter(pirate => roll() + skillValue([pirate], skill.swaggerin) == 1);
+			for(let pirate of overboard) {
+				await kill(pirate, true);
+			}
+		}
+	},
+	{
+		name: 'Beard Lice',
+		handler: async () => {
+			let lousy = filterEventTargets(crew).filter(pirate => roll() < 3);
+			lousy.forEach(pirate => pirate.voyageFlags.add('beard_lice'));
+		}
+	},
+	{
+		name: 'Dice Cheat',
+		handler: async () => {
+			let stealers = filterByAttr(filterEventTargets(crew), skill.stealin);
+			if(stealers.length) {
+				randomResult(stealers).voyageFlags.add('boxed');
+			}
+		}
+	},
+	{
+		name: 'Booty Call',
+		handler: async () => {
+			let result = roll() + skillValue(filterEventActors(crew), skill.stealin);
+			let delta = roll();
+			if(result < 4) {
+				incrementBooty(delta);
+			} else if(result >= 6) {
+				incrementBooty(-delta);
+			}
+		}
+	},
+	{
+		name: 'Bad Grog',
+		handler: async () => shipVoyageFlags.add('bad_grog')
+	},
+	{
+		name: 'Brawl',
+		handler: brawl
+	},
+	{
+		name: 'Jig Fest',
+		handler: async () => {
+			let availabileCrew = filterEventActors(filterEventTargets(crew));
+			if(availabileCrew.length == 0) {
+				return;
+			}
+			let sortedByJigSkill = availabileCrew.map(
+				pirate => ({ result: roll() + skillValue([pirate], skill.swaggerin), pirate: pirate })
+			).sort(
+				(a,b) => b.result - a.result
+			);
+			if(sortedByJigSkill.length > 1 && sortedByJigSkill[0].result == sortedByJigSkill[1].result) {
+				await brawl();
+			} else {
+				let winner = sortedByJigSkill[0].pirate;
+				winner.weeklyFlags.add('deserves_extra_grog');
+				winner.voyageFlags.add('jig_king');
+			}
+		}
+	},
+	{
+		name: 'Cabin Fever',
+		handler: async () => {
+			let all = filterEventActors(filterEventActors(crew));
+			for(let pirate of all) {
+				if(roll() < 3 && crew.includes(pirate)) {
+					await rollOnSobrietyTable(pirate);
+				}
+			}
+		}
+	},
+	{
+		name: 'Singsong',
+		handler: async () => {
+			if(roll() > 3) {
+				crew.forEach(pirate => pirate.weeklyFlags.add('no_work'));
+			}
+		}
+	},
+	{
+		name: 'Flying Fish',
+		handler: async () => crew.forEach(pirate => pirate.weeklyFlags.add('no_work'))
+	},
+	{
+		name: 'Out of Grog',
+		handler: async () => incrementGrog(-grog)
+	},
+	{
+		name: 'Broken Mast',
+		handler: async () => shipPermanentFlags.add('broken_mast')
+	},
+	{
+		name: 'Hook Club',
+		handler: async () => {
+			let hookies = crew.some(pirate => hasAttribute(pirate, feature.hook) || hasAttribute(pirate, feature.leftHook));
+			if(hookies.length) {
+				let existingHookClub = crew.filter(pirate => pirate.permanentFlags.has('hook_club'));
+				if(existingHookClub.length) {
+					let newMember = randomResult(hookies, existingHookClub);
+					if(newMember) {
+						member.permanentFlags.add('hook_club');
+					}
+				} else {
+					let founder = randomResult(hookies);
+					let members = crew.filter(pirate => pirate == founder || roll() == 6);
+					for(let member of members) {
+						member.permanentFlags.add('hook_club');
+						if(!hookies.includes(member)) {
+							await addAttribute(member, feature.hook);
+						}
+					}
+				}
+			}
+		}
+	},
+	{
+		name: 'Rats',
+		handler: async () => shipVoyageFlags.add('rats')
+	},
+	{
+		name: 'Ghost',
+		handler: async () => {
+			let nonSwaggerers = filterEventTargets(crew).filter(pirate => !hasAttribute(pirate, skill.swaggerin));
+			for(let spooked of nonSwaggerers) {
+				spooked.voyageFlags.add('spooked');
+			}
+		}
+	},
+	{
+		name: 'Stolen Hat',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			let stealers = filterByAttr(filterEventActors(availableCrew), skill.stealin);
+			let swaggerers = filterByAttr(availableCrew, skill.swaggerin);
+			let thiefOptions = pirateOptions(stealers.filter(s => swaggerers.some(swag => swag != s)));
+			if(thiefOptions.length == 0) {
+				return;
+			}
+			let thief = await getChoice('Who is the hat thief?', thiefOptions);
+			let victimOptions = pirateOptions(swaggerers.filter(s => s != thief));
+			let victim = await getChoice('Who is the victim?', victimOptions);
+			if(roll() < 4) {
+				await removeAttribute(victim, skill.swaggerin);
+				await addAttribute(thief, skill.swaggerin);
+			} else {
+				await kill(thief, true);
+			}
+		}
+	},
+	{
+		name: 'Scurvy',
+		handler: async () => {
+			shipVoyageFlags.add('scurvy');
+			await rollScurvy();
+		}
+	},
+	{
+		name: 'The Box',
+		handler: async () => filterEventTargets(crew).filter(pirate => roll() == 1).forEach(pirate => pirate.voyageFlags.add('boxed'))
+	},
+	{
+		name: 'Bird Flu',
+		handler: async () => {
+			let parrotKeepers = filterByAttr(crew, feature.parrot);
+			let deaths = crew.filter(pirate => roll() <= parrotKeepers.length);
+			for(let pirate of deaths) {
+				await kill(pirate, true);
+			}
+			await Promise.all(parrotKeepers.map(pirate => removeAttribute(pirate, feature.parrot)));
+		}
+	},
+	{
+		name: 'Murder',
+		handler: async () => {
+			do {
+				var availableCrew = filterEventActors(filterEventTargets(crew));
+				if(availableCrew.length) {
+					await kill(await getChoice('Which pirate will be murdered?', pirateOptions(availableCrew)));
+				} else {
+					break;
+				}
+			} while(roll() > 2)
+		}
+	},
+	{
+		name: 'Indecisive Compass',
+		handler: async () => shipVoyageFlags.add('bad_compass')
+	},
+	{
+		name: 'A Plan',
+		handler: async () => {
+			let availableCrew = filterEventActors(filterEventTargets(crew)).filter(c => !c.captain);
+			if(availableCrew.length == 0) {
+				return;
+			}
+			let progenitor = await getChoice('Which pirate is hatching a plan?', pirateOptions(availableCrew));
+			let conspirators = [progenitor];
+			let conspiratorCount = roll();
+			for(let i=0; i<conspiratorCount; i++) {
+				let conspirator = randomResult(availableCrew, conspirators);
+				if(conspirator) {
+					conspirators.push(conspirator);
+				}
+			}
+			for(let pirate of conspirators) {
+				pirate.permanentFlags.add('away_on_plan');
+				await kill(pirate, false);
+			}
+		}
+	},
+	{
+		name: 'A New Name',
+		handler: async () => {
+			// TODO: this event
+		}
+	},
+	{
+		name: 'Termites',
+		handler: async () => {
+			let result = roll();
+			if(result < 5) {
+				incrementBooty(-result);
+			}
+		}
+	},
+	{
+		name: 'Gangrene',
+		handler: async () => {
+			let dismembered = crew.filter(
+				pirate => hasAttribute(pirate, feature.pegLeg) ||
+				hasAttribute(pirate, feature.hook) ||
+				hasAttribute(pirate, feature.leftHook)
+			);
+			if(!dismembered.length) {
+				incrementBooty(-roll()-roll());
+			} else {
+				let choice = await getChoice('Which pirate contracted gangrene?', pirateOptions(dismembered));
+				choice.voyageFlags.add('gangrenous');
+			}
+		}
+	},
+	{
+		name: 'Stowaway',
+		handler: rollPirate
+	},
+	{
+		name: 'Ocean Madness',
+		handler: async () => {
+			await rollOnCaptainsMadnessTable();
+			let soberPirates = filterEventActors(crew).filter(pirate => !pirate.captain);
+			for(let pirate of soberPirates) {
+				if(crew.includes(pirate)) {
+					await rollOnSobrietyTable(pirate);
+				}
+			}
+		}
+	},
+	{
+		name: 'Bootylust',
+		handler: async () => {
+			let deserters = filterEventActors(filterEventTargets(crew)).filter(pirate => roll() == 1);
+			for(let pirate of deserters) {
+				incrementBooty(-5);
+				await kill(pirate, false);
+			}
+		}
+	},
+	{
+		name: 'Barnacles',
+		handler: async () => shipVoyageFlags.add('barnacles')
+	},
+	{
+		name: 'Mast Rot',
+		handler: async () => {
+			if(roll() == 1) {
+				shipPermanentFlags.add('mast_rot'); // TODO: allow payment to remove
+			}
+		}
+	},
+	{
+		name: 'Pearl Diving',
+		handler: async () => {
+			let availableCrew = filterEventActors(crew);
+			let divers = await getChoice('Who will go pearl diving?', pirateOptions(availableCrew), false);
+			for(let diver of divers) {
+				let result = roll() + skillValue([diver], skill.stealin);
+				if(result == 1) {
+					await kill(diver, true);
+				} else if(result > 4) {
+					incrementBooty(result);
+				}
+			}
+		}
+	},
+	{
+		name: 'Pet Crab',
+		handler: async () => {
+			let pirate = randomResult(filterEventTargets(crew), filterByAttr(crew, feature.crab));
+			if(pirate) {
+				await addAttribute(pirate, feature.crab);
+			}
+		}
+	},
+	{
+		name: 'Lobster Racing',
+		handler: async () => {
+			let pirate = randomResult(filterEventActors(filterEventTargets(crew)));
+			if(pirate) {
+				pirate.permanentFlags.add('hurt_hand');
+			}
+		}
+	},
+	{
+		name: 'Mutiny',
+		handler: async () => await mutiny(randomResult(filterEventActors(filterEventTargets(crew))))
+	},
+	{
+		name: 'Argument',
+		handler: async () => {
+			let availableCrew = filterEventActors(filterEventTargets(crew));
+			if(availableCrew.length < 2) {
+				return;
+			}
+			let first = randomResult(availableCrew);
+			let second = randomResult(availableCrew, [first]);
+			first.rivals.add(second);
+			second.rivals.add(first);
+		}
+	},
+	{
+		name: 'The Prettiest Dress',
+		handler: async () => {
+			let availableCrew = filterEventActors(filterEventTargets(crew));
+			let winner = null;
+			let tied = null;
+			do {
+				let brawlResults = availableCrew.map(
+					pirate => ({ pirate: pirate, result: roll() + skillValue([pirate], skill.swashbucklin) })
+				).sort((a,b) => b.result - a.result);
+				let brawlersKilled = [];
+				winner = brawlResults[0];
+				tied = null;
+				for(let item of brawlResults) {
+					if(brawlersKilled.includes(item.pirate)) {
+						continue;
+					}
+					if(tied === null && item != winner) {
+						tied = item.result == winner.result;
+					}
+					if(item.result > 5) {
+						let victim = randomResult(availableCrew, [item.pirate]);
+						if(victim) {
+							await kill(victim, true);
+							brawlersKilled.push(victim);
+						}
+					}
+				}
+			} while(tied)
+			if(winner) {
+				await addAttribute(winner.pirate, feature.prettyDress);
+			}
+		}
+	},
+];
+
+
+const seaEncounterTable = [
+	{
+		name: 'Giant Squid',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			let fighters = filterEventActors(availableCrew);
+			while(availableCrew.length) {
+				let result = roll() + skillValue(fighters, skill.swashbucklin);
+				if(result < 4) {
+					await kill(randomResult(availableCrew), true);
+				} else {
+					if(result > 6) {
+						incrementBooty(10);
+					}
+					break;
+				}
+			}
+		}
+	},
+	{
+		name: 'Iceberg',
+		handler: async () => {
+			let choice = await getChoice('What should be lost in the iceberg collision?', [
+				{ value: 0, text: 'All your booty' },
+				{ value: 1, text: 'All your grog' },
+				{ value: 2, text: '1-6 crew members' },
+			]);
+			switch(choice) {
+				case 0:
+					incrementBooty(-booty);
+					break;
+				case 1:
+					incrementGrog(-grog);
+					break;
+				case 2:
+					let deathCount = roll();
+					let availableCrew = filterEventTargets(crew);
+					for(let i=0; i<deathCount; i++) {
+						let victim = randomResult(availableCrew);
+						if(victim) {
+							await kill(victim, true);
+						}
+					}
+					break;
+			}
+		}
+	},
+	{
+		name: 'Helpless Ship',
+		handler: async () => incrementBooty((roll() + skillValue(crew, skill.stealin)) * 5)
+	},
+	{
+		name: 'Navy Attack',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			let fighters = filterEventActors(availableCrew);
+			let result = roll() + skillValue(fighters, skill.shootin);
+			if(result < 5) {
+				let loseCrew = await getChoice('What should be lost in the navy attack?', [
+					{ value: 0, text: '2-12 grog and 2-12 booty' },
+					{ value: 1, text: '2 crew members' }
+				]);
+				if(loseCrew) {
+					for(let i=0; i<2; i++) {
+						let lost = randomResult(availableCrew);
+						if(lost) {
+							await kill(lost, true);
+						}
+					}
+				} else {
+					incrementBooty(-roll()-roll());
+					incrementGrog(-roll()-roll());
+				}
+			} else if(result > 6) {
+				incrementBooty(roll()+roll()+roll()+roll());
+			}
+		}
+	},
+	{
+		name: 'Pirate Trap',
+		handler: async () => {
+			let result = roll() + skillValue(filterEventActors(crew), skill.shootin);
+			if(result < 3) {
+				incrementBooty(-10);
+			} else if(result > 4) {
+				incrementBooty(result * 2);
+			}
+		}
+	},
+	{
+		name: 'Triangle of Doom',
+		handler: async () => {
+			let rolls = [roll(), roll(), roll()];
+			if(rolls[0] == rolls[1] && rolls[2] == rolls[1]) {
+				for(let pirate of crew) {
+					await kill(pirate, false);
+				}
+			}
+		}
+	},
+	{
+		name: 'Doldrum',
+		handler: async () => shipPermanentFlags.add('becalmed')
+	},
+	{
+		name: 'Black Water',
+		handler: async () => {
+			headingToIsland = false;
+			shipVoyageFlags.add('no_heading_change');
+		}
+	},
+	{
+		name: 'Islander Canoes',
+		handler: async () => {
+			// TODO: implement event
+		}
+	},
+	{
+		name: 'Sea Volcano',
+		handler: async () => {
+			let choices =  await getChoice('What 2 things should be lost to the volcano?', [
+				{ value: 0, text: 'a crew member' },
+				{ value: 1, text: '1-6 grog' },
+				{ value: 2, text: '1-6 booty' },
+			], true, 2);
+			for(let choice of choices) {
+				switch(choice) {
+					case 0:
+						let lost = randomResult(filterEventTargets(crew));
+						if(lost) {
+							await kill(lost, true);
+						}
+						break;
+					case 1:
+						incrementGrog(-roll());
+						break;
+					case 1:
+						incrementBooty(-roll());
+						break;
+				}
+			}
+		}
+	},
+	{
+		name: 'Hurricane',
+		handler: async () => {
+			let result = roll();
+			if(result < 3) {
+				incrementBooty(-roll()-roll()-roll());
+			} else {
+				shipWeeklyFlags.add('early_arrival');
+				headingToIsland = result < 5;
+			}
+		}
+	},
+	{
+		name: 'Whirlpool',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			while(availableCrew.length) {
+				let choice =  await getChoice('What will be sacrificed to the whirlpool?', [
+					{ value: 0, text: 'a crew member' },
+					{ value: 1, text: '1 grog' },
+					{ value: 2, text: '1 booty' },
+				]);
+				switch(choice) {
+					case 0:
+						incrementBooty(-1);
+						break;
+					case 1:
+						incrementGrog(-1);
+						break;
+					case 2:
+						let sacrifice = await getChoice('Which crew member will be sacrificed?', pirateOptions(availableCrew));
+						await kill(sacrifice, true);
+						availableCrew = filterEventTargets(crew);
+						break;
+				}
+				if(roll() > 4) {
+					break;
+				}
+			}
+		}
+	},
+	{
+		name: 'Big Wave',
+		handler: async () => {
+			let avoid =  await getChoice('Should the ship try to avoid the wave?', [
+				{ value: 0, text: 'Yes (lose 1-6 booty)' },
+				{ value: 1, text: 'No (will either lose all booty or arrive early at destination)' },
+			]);
+			if(avoid) {
+				incrementBooty(-roll());
+			} else {
+				let result = roll();
+				if(result < 3) {
+					incrementBooty(-booty);
+				} else if(result > 4) {
+					shipWeeklyFlags.add('early_arrival');
+				}
+			}
+		}
+	},
+	{
+		name: 'Heatwave',
+		handler: async () => shipWeeklyFlags.add('heatwave')
+	},
+	{
+		name: 'Sharks',
+		handler: async () => {
+			let sharkBait = await getChoice('Which pirate will be sacrificed to the sharks?', pirateOptions(filterEventTargets(crew)));
+			if(!sharkBait) {
+				return;
+			}
+			let result = roll() + skillValue([sharkBait], skill.swashbucklin);
+			if(result < 3) {
+				await kill(sharkBait, true);
+			} else {
+				await addAttribute(sharkBait, skill.swaggerin);
+				if(result > 4) {
+					incrementBooty(roll());
+				}
+			}
+		}
+	},
+	{
+		name: 'Crocs',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			let scaredToDeath = filterByAttr(availableCrew, feature.crocophobia);
+			for(let pirate of scaredToDeath) {
+				await kill(pirate, true);
+			}
+			let crocBait = await getChoice('Which pirate will be sacrificed to the sharks?', pirateOptions(availableCrew));
+			if(crocBait) {
+				await addAttribute(crocBait, feature.crocophobia);
+			}
+		}
+	},
+	{
+		name: 'White Whale',
+		handler: async () => {
+			// TODO: implement
+		}
+	},
+	{
+		name: 'Mermaids',
+		handler: async () => {
+			let tempted = filterEventActors(filterEventTargets(crew)).filter(pirate => roll() < 3);
+			for(let pirate of tempted) {
+				let result = roll() + skillValue([pirate], skill.swashbucklin);
+				if(result < 4) {
+					await kill(pirate, true);
+				}
+			}
+		}
+	},
+	{
+		name: 'Message in a Bottle',
+		handler: async () => shipPermanentFlags.add('waiting_castaway')
+	},
+	{
+		name: 'Pirate in a Barrel',
+		handler: async () => {
+			let accept =  await getChoice('Should the barrel pirate be taken on as crew?', [
+				{ value: 0, text: 'Yes (the pirate my go crazy and kill someone)' },
+				{ value: 1, text: 'No (no effect)' },
+			]);
+			if(accept) {
+				let result = roll();
+				if(result < 3) {
+					let victim = randomResult(filterEventTargets(crew));
+					if(victim) {
+						await kill(victim, true);
+					}
+				} else {
+					rollPirate();
+				}
+			}
+		}
+	},
+	{
+		name: 'Ghost Ship',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			let result = roll();
+			if(result < 4) {
+				for(let i=0; i<3; i++) {
+					let victim = randomResult(availableCrew);
+					if(victim) {
+						await kill(victim, true);
+					}
+				}
+			} else if(result > 6) {
+				incrementBooty(20);
+			}
+		}
+	},
+	{
+		name: 'Sea Rats',
+		handler: async () => {
+			let accept =  await getChoice('What should be done with the 2 shipwrecked pirates?', [
+				{ value: 0, text: 'Take them on as crew' },
+				{ value: 1, text: 'Kill them for their stuff (2-12 booty and 1-6 grog)' },
+			]);
+			if(accept) {
+				rollPirate();
+				rollPirate();
+			} else {
+				incrementBooty(roll()+roll());
+				incrementGrog(roll());
+			}
+		}
+	},
+	{
+		name: 'Sirens',
+		handler: async () => {
+			incrementBooty(-roll()-roll());
+			incrementGrog(-roll()-roll());
+		}
+	},
+	{
+		name: 'Leviathan',
+		handler: async () => {
+			let result = roll() + skillValue(filterEventActors(crew), skill.shootin);
+			if(result < 6) {
+				headingToIsland = false;
+				shipWeeklyFlags.add('early_arrival');
+				incrementBooty(-booty);
+				incrementGrog(-grog);
+				incrementGrog(roll());
+			}
+		}
+	},
+	{
+		name: 'Treasure Hunters',
+		handler: async () => {
+			let accept =  await getChoice('What should be done about the treasure hunters?', [
+				{ value: 0, text: 'Let them guide the ship to an island and take half of anything found' },
+				{ value: 1, text: 'Raid them for booty, they will fight back' },
+			]);
+			if(accept) {
+				headingToIsland = true;
+				shipWeeklyFlags.add('early_arrival');
+				shipWeeklyFlags.add('treasure_hunter_iou'); // TODO: handle this
+			} else {
+				let availableCrew = filterEventActors(filterEventTargets(crew));
+				let result = roll() + skillValue(availableCrew, skill.swashbucklin);
+				if(result < 4) {
+					let victim = randomResult(availableCrew);
+					if(victim) {
+						await kill(victim, true);
+					}
+				} else {
+					incrementBooty(roll());
+				}
+				if(result > 6) {
+					incrementBooty(roll());
+				}
+			}
+		}
+	},
+	{
+		name: 'Bounty Hunters',
+		handler: async () => {
+			let result = roll() + skillValue(filterEventActors(crew), skill.swashbucklin);
+			if(result < 4) {
+				await kill(getCaptain(), true);
+			} else if(result > 5) {
+				incrementBooty(roll());
+			}
+		}
+	},
+	{
+		name: 'Explorers',
+		handler: async () => {
+			let accept =  await getChoice('What should be done about the explorers?', [
+				{ value: 0, text: 'Let them guide the ship to an island at the cost of 5 booty' },
+				{ value: 1, text: 'Raid them for booty' },
+			]);
+			if(accept) {
+				if(booty >= 5) {
+					incrementBooty(-5);
+					headingToIsland = true;
+					shipWeeklyFlags.add('early_arrival');
+				}
+			} else {
+				let result = roll() + skillValue(filterEventActors(crew), skill.swashbucklin);
+				if(result > 6) {
+					incrementBooty(result * 2);
+				} else if(result > 4) {
+					incrementBooty(roll()+roll());
+				} else if(result > 2) {
+					incrementBooty(roll());
+				}
+			}
+		}
+	},
+	{
+		name: 'Merchant Convoy',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			let actors = filterEventActors(availableCrew);
+			let result = roll() + skillValue(actors, skill.shootin);
+			if(result < 5) {
+				let victim = randomResult(availableCrew);
+				if(victim) {
+					await kill(victim, true);
+				}
+			} else {
+				incrementBooty(roll() + skillValue(actors, skill.stealin));
+			}
+		}
+	},
+	{
+		name: 'Ship Graveyard',
+		handler: async () => {
+			let availableCrew = filterEventActors(filterEventTargets(crew));
+			let result = roll() + skillValue(availableCrew, skill.stealin);
+			incrementBooty(result);
+			if(result == 1) {
+				let victim = randomResult(availableCrew);
+				if(victim) {
+					await kill(victim, true);
+				}
+			}
+		}
+	},
+	{
+		name: 'Rising Island',
+		handler: async () => {
+			headingToIsland = true;
+			shipWeeklyFlags.add('early_arrival');
+		}
+	},
+	{
+		name: 'The Mist',
+		handler: async () => shipVoyageFlags.add('uncertain_navigation')
+	},
+	{
+		name: 'Flagship',
+		handler: async () => {
+			let availableCrew = filterEventTargets(crew);
+			while(availableCrew.length) {
+				let result = roll() + skillValue(filterEventActors(availableCrew), skill.shootin);
+				if(result < 4) {
+					incrementBooty(-roll());
+					await kill(randomResult(availableCrew), true);
+					availableCrew = filterEventTargets(crew)
+				} else {
+					if(result > 5) {
+						incrementBooty(roll()+roll());
+						incrementGrog(roll()+roll());
+					}
+					break;
+				}
+			}
+		}
+	},
+	{
+		name: 'Cursed Ship',
+		handler: async () => {
+			incrementBooty(roll()+roll());
+			shipVoyageFlags.add('curse');
+		}
+	},
+	{
+		name: 'Dolphins',
+		handler: async () => {
+			shipVoyageFlags.add('dolphin_guides');
+		}
+	},
+	{
+		name: 'Spice Vessel',
+		handler: async () => incrementBooty((roll() + skillValue(filterEventActors(crew), skill.stealin))*5)
+	},
+	{
+		name: 'Stirring Deep',
+		handler: async () => {
+			let choice =  await getChoice('What should be handed over to the shadow creatures?', [
+				{ value: 0, text: 'All the crew that can be found apart from the captain' },
+				{ value: 1, text: '1 booty and 1 grog' },
+				{ value: 2, text: 'Nothing (they will destroy the ship)' },
+			]);
+			switch(choice) {
+				case 0:
+					let sacrifice = filterEventTargets(crew).filter(pirate => !pirate.captain);
+					for(let pirate of sacrifice) {
+						await kill(pirate, false);
+					}
+					break;
+				case 1:
+					incrementBooty(-booty);
+					incrementGrog(-grog);
+					break;
+				case 2:
+					for(let pirate of crew) {
+						await kill(pirate, true);
+					}
+					break;
+			}
+		}
+	},
+];
+
+async function doWeek() {
+	await addToLog(`New week started`, 1500);
+	if(shipPermanentFlags.has('becalmed')) {
+		if(roll() > 3) {
+			shipPermanentFlags.delete('becalmed');
+			await addToLog(`Ship has left the doldrums`);
+		}
+	}
+	let startedWeekWithBrokenMast = shipPermanentFlags.has('broken_mast');
+	let startedWeekWithWaitingCastaway = shipPermanentFlags.has('waiting_castaway');
+	let piratesStartingWeekWithHurtHand = pirates.filter(pirate => pirate.permanentFlags.has('hurt_hand'));
+	if(shipVoyageFlags.has('scurvy')) {
+		await rollScurvy();
+	}
+	let crewAway = pirates.filter(pirate => pirate.permanentFlags.has('away_on_plan'));
+	if(crewAway.length) {
+		let planResult = roll();
+		if(planResult < 3) {
+			for(let deadPirate of crewAway) {
+				await kill(deadPirate, true);
+			}
+		} else if(planResult > 4) {
+			incrementBooty(crewAway.length*10);
+		}
+		for(let pirate of crewAway) {
+			pirate.permanentFlags.delete('away_on_plan');
+			await addPirateToCrew(pirate);
+		}
+	}
+	if(inPort) {
+		await addToLog(`Shoving off!`);
+		inPort = false;
+	}
+	// jobs
+	let unassigned = crew.filter(pirate => !pirate.captain);
+	let onHelm = null;
+	let onDeck = [];
+	let onSails = [];
+	if(unassigned.length) {
+		onHelm = await getChoice('Who is on helm with the captain?', unassigned.map(w => pirateToOption(w, w.job == 'helm')));
+		unassigned = unassigned.filter(w => w != onHelm);
+	}
+	if(unassigned.length) {
+		onDeck = await getChoice('Who is working the deck?', unassigned.map(w => pirateToOption(w, w.job == 'deck')), false);
+		unassigned = unassigned.filter(w => !onDeck.includes(w));
+	}
+	if(unassigned.length) {
+		onSails = await getChoice('Who is working the sails?', unassigned.map(w => pirateToOption(w, w.job == 'sails')), false);
+	}
+	for(let worker of crew) {
+		if(worker == onHelm || worker.captain) {
+			worker.job = 'helm';
+		} else if(onDeck.includes(worker)) {
+			worker.job = 'deck';
+		} else if(onSails.includes(worker)) {
+			worker.job = 'sails';
+		} else {
+			worker.job = null;
+		}
+	}
+	let team = { helm: crew.filter(w => w.job == 'helm'), deck: onDeck, sails: onSails };
+	// handle seasickness
+	let seasickPirates = crew.filter(pirate => hasAttribute(pirate, flaw.seasick) || pirate.voyageFlags.has('drank_bad_grog'))
+	for(let pirate of seasickPirates) {
+		let workers = team[pirate.job];
+		if(workers && roll() < 3 && filterByAttr(workers, legend.terrible) == 0) {
+			await addToLog(`${getPirateName(pirate)} is too sick to work this week`);
+			pirate.weeklyFlags.add('no_work');
+		}
+	}
+	// handle scraps
+	let scrappyPirates = filterByAttr(crew, flaw.scrapper)
+	for(let scrapper of scrappyPirates) {
+		let workers = team[scrapper.job];
+		if(workers && workers.length > 1 && roll() == 1 && filterByAttr(workers, legend.terrible) == 0) {
+			workers = workers.filter(w => w != scrapper);
+			let target = randomResult(workers);
+			await addToLog(`${getPirateName(scrapper)} started a fight with ${getPirateName(target)}, preventing either of them from working this week`);
+			scrapper.weeklyFlags.add('no_work');
+			target.weeklyFlags.add('no_work');
+		}
+	}
+	// helm
+	if(team.helm.length < 2 && !shipPermanentFlags.has('broken_mast')) {
+		await rollOnCaptainsMadnessTable();
+	}
+	let helmsmen = filterWorkers(team.helm);
+	let helmSucceeded = helmsmen.includes(getCaptain());
+	if(!getCaptain().voyageFlags.has('no_heading_change')) {
+		if(helmSucceeded) {
+			headingToIsland = await getChoice('What is our heading?', [
+				{ value: true, text: 'Island', selected: headingToIsland },
+				{ value: false, text: 'Port', selected: !headingToIsland },
+			]);
+			await addToLog(`We are on course`);
+		} else {
+			headingToIsland = roll() > 3;
+			await addToLog(`Captain cannot steer the ship. Our heading is now ${headingToIsland ? 'island' : 'port'}`);
+		}
+	}
+	// deck
+	let deckhands = filterWorkers(team.deck);
+	let result = roll();
+	if(result > 1) {
+		result += deckhands.length;
+	}
+	if(result < 6) {
+		let event = randomResult(crewEventTable);
+		await addToLog(`Crew Event: ${event.name}`);
+		await event.handler();
+	} else {
+		await addToLog(`Decks running smoothly`);
+	}
+	// sails
+	await addToLog(`Sails job in progress`);
+	let sailors = filterWorkers(team.sails);
+	result = roll();
+	if(result > 1) {
+		result += sailors.length;
+	}
+	if(shipPermanentFlags.has('mast_rot')) {
+		result -= 2;
+	}
+	let destinationReached = false;
+	if(result >= 6 && !shipPermanentFlags.has('broken_mast') && !shipPermanentFlags.has('becalmed')) {
+		// reached destination
+		destinationReached = true;
+		if(shipVoyageFlags.has('uncertain_navigation')) {
+			let navResult = roll();
+			if(navResult == 1) {
+				destinationReached = false;
+			} else if(navResult == 1) {
+				headingToIsland = !headingToIsland;
+			}
+			shipVoyageFlags.delete('uncertain_navigation');
+		}
+	} else {
+		// still at sea
+		let event = randomResult(seaEncounterTable);
+		await addToLog(`Sea Encounter: ${event.name}`);
+		await event.handler();
+		if(shipWeeklyFlags.has('early_arrival')) {
+			destinationReached = true;
+		}
+	}
+	// handle arrival at destination
+	if(destinationReached) {
+		await addToLog(`Land ho!`);
+		if(shipVoyageFlags.has('bad_compass')) {
+			headingToIsland = roll() > 3;
+			await addToLog(`Indecisive compass led us to this ${headingToIsland ? 'island' : 'port'}`);
+			shipVoyageFlags.delete('bad_compass');
+		}
+		if(shipVoyageFlags.has('curse')) {
+			if(roll() < 3) {
+				await addToLog(`All booty disappeared! We shouldn't have messed with that cursed ship!`);
+				incrementBooty(-booty);
+			}
+			shipVoyageFlags.delete('curse');
+		}
+		let eventReRollable = shipVoyageFlags.has('dolphin_guides');
+		if(eventReRollable) {
+			shipVoyageFlags.delete('dolphin_guides');
+		}
+		if(!headingToIsland) {
+			inPort = true;
+			await addToLog(`Making port`);
+			if(shipVoyageFlags.has('barnacles')) {
+				await addToLog(`Barnacles removed`);
+				incrementBooty(-3);
+			}
+			if(getCaptain().voyageFlags.has('homesick')) {
+				let luxuryCost = -roll()-roll();
+				await addToLog(`Captain spent ${luxuryCost} on luxuries out of homesickness`);
+				incrementBooty();
+			}
+			let jailbirds = crew.filter(pirate => pirate.voyageFlags.has('in_jail') && pirate.alive);
+			if(jailbirds.length) {
+				await addToLog(`${jailbirds.length} pirate(s) returned from jail`);
+				for(let pirate of jailbirds) {
+					await addPirateToCrew(pirate);
+				}
+			}
+			shipVoyageFlags.clear();
+			crew.forEach(pirate => pirate.voyageFlags.clear());
+			// TODO: roll on port table
+			if(eventReRollable) {
+				// TODO: enable re-roll
+			}
+			incrementBooty(-crew.length);
+			// handle backstabber
+			let backstabber = filterByAttr(crew, legend.backstabber)[0];
+			if(backstabber) {
+				let result = roll();
+				if(result == 1) {
+					await addToLog(`${getPirateName(backstabber)} was thrown in jail`);
+					backstabber.voyageFlags.add('in_jail');
+					await kill(backstabber, false);
+				} else {
+					await addToLog(`${getPirateName(backstabber)} acquired ${result} booty through armed robbery`);
+					incrementBooty(result);
+				}
+			}
+			// handle bastard
+			let bastard = filterByAttr(crew, legend.bastard)[0];
+			if(bastard) {
+				let result = roll();
+				if(result == 1) {
+					await kill(bastard, true);
+				} else if(result > 4) {
+					await addToLog(`${getPirateName(bastard)} beat up an enemy so badly, they're joining the crew out of admiration`);
+					await rollPirate();
+				}
+			}
+		} else {
+			if(startedWeekWithWaitingCastaway) {
+				await addToLog(`Castaway found`);
+				rollPirate();
+			}
+			// TODO: get exploration assignments
+			// TODO: roll for island event, etc.
+			if(eventReRollable) {
+				// TODO: enable re-roll
+			}
+		}
+	}
+	// calculate grog consumption
+	if(!inPort) {
+		await addToLog(`The crew took their weekly grog`);
+		let grogDrinkers = crew.filter(pirate => !pirate.voyageFlags.has('boxed'));
+		let consumedGrog = grogDrinkers.length;
+		let doubleConsumption = shipWeeklyFlags.has('heatwave');
+		if(doubleConsumption) {
+			consumedGrog *= 2;
+		}
+		let swiggers = filterByAttr(grogDrinkers, flaw.swigger);
+		let soberPirates = [];
+		for(let swigger of swiggers) {
+			let previousConsumption = consumedGrog;
+			while(roll() < 4) {
+				if(consumedGrog < grog) {
+					consumedGrog ++;
+				} else {
+					soberPirates.push(swigger);
+					break;
+				}
+			}
+			await addToLog(`${getPirateName(swigger)} drank ${consumedGrog - previousConsumption} extra grog`);
+		}
+		if(consumedGrog < grog) {
+			consumedGrog += grogDrinkers.filter(pirate => pirate.weeklyFlags.has('deserves_extra_grog')).length;
+		}
+		let remainingGrog = incrementGrog(-consumedGrog);
+		if(remainingGrog < 0) {
+			let soberCount = Math.abs(remainingGrog / (doubleConsumption ? 2 : 1));
+			if(soberCount) {
+				await addToLog(`${soberCount} pirates did not get enough grog`);
+			}
+			for(let i=0; i<soberCount; i++) { // TODO: this might be wrong
+				let soberPirate = randomResult(grogDrinkers, soberPirates);
+				if(soberPirate && crew.includes(soberPirate)) { // check that a pirate is found, in case they've all been killed
+					soberPirates.push(soberPirate);
+					await rollOnSobrietyTable(soberPirate);
+				}
+			}
+			if(shipVoyageFlags.has('bad_grog')) {
+				grogDrinkers.filter(pirate => !soberPirates.includes(pirate)).forEach(pirate => pirate.voyageFlags.add('drank_bad_grog'));
+			}
+		}
+	}
+	// extra week-end stuff
+	if(startedWeekWithBrokenMast && shipPermanentFlags.has('broken_mast') && roll() > 2) {
+		console.log('broken mast repaired');
+		shipPermanentFlags.delete('broken_mast');
+	}
+	if(shipVoyageFlags.has('rats')) {
+		switch(roll()) {
+			case 1:
+				incrementGrog(-1);
+				break;
+			case 2:
+				incrementBooty(-1);
+				break;
+			case 6:
+				let petRatRecipient = randomResult(crew, filterByAttr(crew, feature.rat));
+				if(petRatRecipient) {
+					await addAttribute(petRatRecipient, feature.rat);
+				}
+				break;
+		}
+	}
+	if(startedWeekWithWaitingCastaway) {
+		shipPermanentFlags.delete('waiting_castaway');
+	}
+	piratesStartingWeekWithHurtHand.forEach(pirate => pirate.permanentFlags.delete('hurt_hand'));
+	shipWeeklyFlags.clear();
+	pirates.forEach(pirate => pirate.weeklyFlags.clear());
+	console.log('end of week');
+	console.log('grog', grog);
+	console.log('booty', booty);
+	play();
+}
+
+async function play() {
+	try {
+		await doWeek();
+	} catch(e) {
+		if(e.message == 'NO_CREW') {
+			console.log('you lost');
+		} else {
+			console.error(e);
+		}
+	}
+}
+
+async function getInput() {
+	let element = document.getElementById('go-button');
+	return new Promise((resolve, reject) => {
+		let listenerName = 'click';
+		let listener = event => {
+			element.removeEventListener(listenerName, listener);
+			resolve(event);
+		};
+		element.addEventListener(listenerName, listener);
+	});
+}
+
+grog = 40;
+booty = 0;
+inPort = false;
+headingToIsland = true;
+pirates = [];
+crew = [];
+shipWeeklyFlags = new Set();
+shipVoyageFlags = new Set();
+shipPermanentFlags = new Set();
+
+(async () => {
+	await addToLog(`Generating starting crew`, 1500);
+	for(let i=0; i<8; i++) {
+		let newPirate = await rollPirate();
+		if(i < 5) {
+			newPirate.job = 'deck';
+		} else {
+			newPirate.job = 'sails';
+		}
+	}
+	await pickNewCaptain();
+
+	updateTopBar();
+	updateCrewList();
+	play();
+})();
+
+</script>
+</body>
+</html>
