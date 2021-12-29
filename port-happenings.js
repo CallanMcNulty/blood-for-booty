@@ -112,10 +112,11 @@ const portHappeningTable = [
 		description: 'One pirate must fight an old foe.',
 		continueText: 'Do what you must',
 		handler: async () => {
-			let fighter = filterEventTargets(filterEventActors(crew));
-			if(!fighter) {
+			let availableCrew = filterEventTargets(filterEventActors(crew));
+			if(availableCrew.length == 0) {
 				return { description:`It turns out to have been a case of mistaken identity. Nobody has to fight after all.` };
 			}
+			let fighter = availableCrew[0];
 			let result = roll(fighter) + skillValue([fighter], skill.swashbucklin) + skillValue([fighter], skill.shootin);
 			if(result < 4) {
 				await kill(fighter, 'was killed in a duel', true);
@@ -133,7 +134,8 @@ const portHappeningTable = [
 		handler: async () => {
 			shipWeeklyFlags.add('no_port_cost');
 			let result = roll()+roll();
-			updatePort(result);
+			tradableBooty = result;
+			updatePort();
 			await addToLog(`Transactions are limited to ${result} Booty at this port`);
 		}
 	},
@@ -224,7 +226,7 @@ const portHappeningTable = [
 		continueText: 'Find out who it is',
 		handler: async () => {
 			let legendOptions = Object.values(legend)
-				.filter(l => pirates.find(p => hasAttribute(p, legend) && p.alive))
+				.filter(l => pirates.find(p => !(hasAttribute(p, legend) && p.alive)))
 				.map(l => ({ value:l, text:l.name }))
 			;
 			if(legendOptions.length == 0) {
@@ -314,6 +316,10 @@ const portHappeningTable = [
 		name: 'Docking Fee',
 		description: 'If the crew wants to stay docked here it will cost them.',
 		handler: async () => {
+			if(booty < 5) {
+				shipWeeklyFlags.add('skip_port_actions');
+				return { continueText:'Keep sailing', description:'We do not have enough Booty to pay.' };
+			}
 			let pay = await getChoice('Pay the 5 Booty?', [
 				{ value: true, text: 'Yes' },
 				{ value: false, text: 'No, just keep sailing' },
@@ -408,7 +414,7 @@ const portHappeningTable = [
 		handler: async () => {
 			let buyer = randomResult(crew);
 			let petFeatures = [ feature.parrot, feature.monkey, feature.rat, feature.crab ];
-			let desiredPet = randomResult(buyer.attributes.filter(a => !petFeatures.includes(a)));
+			let desiredPet = randomResult(petFeatures.filter(a => !buyer.attributes.includes(a)));
 			if(desiredPet) {
 				incrementBooty(-5);
 				await addAttribute(buyer, desiredPet);
@@ -523,7 +529,9 @@ const portHappeningTable = [
 		name: 'Smouldering Ruin',
 		description: 'This port is little more than a pile of burnt wreckage.',
 		continueText: 'Keep on sailing',
-		handler: async () => {}
+		handler: async () => {
+			shipWeeklyFlags.add('skip_port_actions');
+		}
 	},
 	{
 		name: 'Messenger',

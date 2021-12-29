@@ -51,7 +51,7 @@ function getPirateName(pirate) {
 		names.push('Captain');
 	}
 	if(nickname) {
-		names.push(`"${nickname}"`);
+		names.push(`“${nickname}”`);
 	}
 	names.push(pirate.name);
 	if(appellation) {
@@ -64,6 +64,7 @@ function incrementGrog(value) {
 	let remainingGrog = grog + value;
 	grog = Math.max(remainingGrog, 0);
 	updateTopBar();
+	updatePort();
 	return remainingGrog;
 }
 
@@ -89,6 +90,16 @@ function incrementStashedBooty(value) {
 	updateTopBar();
 	updatePort();
 	return remainingBooty;
+}
+
+function updateTradableBooty(bootyDeficit) {
+	if(tradableBooty !== null) {
+		tradableBooty += bootyDeficit;
+		if(tradableBooty <= 0) {
+			tradableBooty = null;
+		}
+		updatePort();
+	}
 }
 
 function getGrogPrice() {
@@ -520,7 +531,7 @@ async function doWeek() {
 	}
 	let helmsmen = filterWorkers(team.helm);
 	let helmSucceeded = helmsmen.includes(getCaptain());
-	if(!getCaptain().voyageFlags.has('no_heading_change')) {
+	if(!getCaptain().voyageFlags.has('no_heading_change') || getCaptain().permanentFlags.has('whale_obsession')) {
 		if(helmSucceeded) {
 			headingToIsland = await getChoice('What is our heading?', [
 				{ value: true, text: 'Island', selected: headingToIsland },
@@ -758,7 +769,6 @@ async function doWeek() {
 				if(backstabber) {
 					let result = roll(backstabber);
 					if(result == 1) {
-						await addToLog(`${getPirateName(backstabber)} was thrown in jail`);
 						backstabber.voyageFlags.add('in_jail');
 						await kill(backstabber, 'was thrown in jail', false);
 					} else {
@@ -856,10 +866,10 @@ async function doWeek() {
 	piratesStartingWeekWithHurtHand.forEach(pirate => pirate.permanentFlags.delete('hurt_hand'));
 	shipWeeklyFlags.clear();
 	pirates.forEach(pirate => pirate.weeklyFlags.clear());
-	play();
+	playGame();
 }
 
-async function play() {
+async function playGame() {
 	try {
 		await doWeek();
 	} catch(e) {
@@ -870,9 +880,31 @@ async function play() {
 		} else {
 			console.error(e);
 			await doAction('Something went wrong', 'Looks like we got a software bug here.', 'Attempt to recover');
-			play();
+			playGame();
 		}
 	}
+}
+
+function pause() {
+	autoPlay = false;
+	updateTopBar();
+}
+
+function play() {
+	autoPlay = true;
+	updateTopBar();
+}
+
+function setPaused(state) {
+	paused = state;
+	updateTopBar();
+	updateCrewList();
+}
+
+async function win() {
+	updateCrewList();
+	await doAction('You won!', 'Congratulations on your successful life of piracy.', 'Play again');
+	beginGame();
 }
 
 function serializeGameState() {
@@ -906,6 +938,7 @@ function serializeGameState() {
 		grog: grog,
 		booty: booty,
 		stashedBooty: stashedBooty,
+		tradableBooty: tradableBooty,
 		inPort: inPort,
 		headingToIsland: headingToIsland,
 		pirates: piratesCopy,
@@ -920,6 +953,7 @@ function loadGameState(saved) {
 	grog = saved.grog;
 	booty = saved.booty;
 	stashedBooty = saved.stashedBooty;
+	tradableBooty = saved.tradableBooty;
 	inPort = saved.inPort;
 	headingToIsland = saved.headingToIsland;
 	saved.pirates.forEach(p => {
@@ -953,6 +987,7 @@ function beginGame() {
 	grog = 40;
 	booty = 0;
 	stashedBooty = 0;
+	tradableBooty = null;
 	inPort = false;
 	headingToIsland = true;
 	pirates = [];
@@ -960,7 +995,9 @@ function beginGame() {
 	shipWeeklyFlags = new Set();
 	shipVoyageFlags = new Set();
 	shipPermanentFlags = new Set();
-	
+	autoPlay = true;
+	paused = false;
+
 	(async () => {
 		updateTopBar();
 		clearLog();
@@ -976,6 +1013,6 @@ function beginGame() {
 		await pickNewCaptain();
 
 		updateCrewList();
-		play();
+		playGame();
 	})();
 }

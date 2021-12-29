@@ -152,16 +152,18 @@ const seaEncounterTable = [
 					await killRandomPirates(availableCrew, 'was shot by poisoned darts', killedCount);
 					incrementBooty(roll()+roll());
 					break;
-				case 1:
+				case 1: {
 					let amount = await getNumberInput('Sell Grog', 'How much Grog should be sold?', 'Sell', 0, grog);
 					incrementGrog(-amount);
 					incrementBooty(amount * grogSellPrice);
 					break;
-				case 2:
+				}
+				case 2: {
 					let amount = await getNumberInput('Buy Grog', 'How much Grog should be bought?', 'Buy', 0, booty*2);
 					incrementBooty(-Math.ceil(amount/2));
 					incrementGrog(amount);
 					break;
+				}
 			}
 		}
 	},
@@ -619,8 +621,11 @@ const seaEncounterTable = [
 			]);
 			switch(choice) {
 				case 0:
-					let salvageable = filterEventTargets(crew).filter(pirate => !pirate.captain)
-					let saved = await getChoice('Which crew member should be saved?', pirateOptions(salvageable));
+					let salvageable = filterEventTargets(crew).filter(pirate => !pirate.captain);
+					let saved = null;
+					if(salvageable.length) {
+						saved = await getChoice('Which crew member should be saved?', pirateOptions(salvageable));
+					}
 					let sacrifice = salvageable.filter(p => p != saved);
 					for(let pirate of sacrifice) {
 						await kill(pirate, 'was sacrificed to the shadow monsters', false);

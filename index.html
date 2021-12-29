@@ -5,6 +5,7 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Blood for Booty</title>
+	<script src="https://kit.fontawesome.com/0422dde105.js" crossorigin="anonymous"></script>
 	<style>
 		* {
 			box-sizing: border-box;
@@ -37,19 +38,31 @@
 			text-align: center;
 			background-color: papayawhip;
 		}
+		.port-action {
+			margin: .5rem;
+			border: .1rem solid;
+			padding: 1rem;
+			width: 15rem;
+		}
 	</style>
 </head>
 <body style="margin:0; height:100vh; display:flex; flex-direction:column; font-family:cursive; color:rgba(50,0,0,.8);">
-<div style="background-color:maroon; color:white; padding:1rem; font-size:1.2rem;">
-	<span>Grog: <span id="grog">0</span></span>
-	<span>Booty: <span id="booty">0</span></span>
-	<span>Heading: <span id="heading">Island</span></span>
+<div style="background-color:maroon; color:white; padding:1rem; font-size:1.2rem; cursor:default;">
+	<span style="margin-right:1rem;"><i class="fas fa-beer"></i> <span id="grog">0</span></span>
+	<span style="margin-right:1rem;"><i class="fas fa-coins"></i> <span id="booty">0</span></span>
+	<span id="stash" style="margin-right:1rem;"><i class="fas fa-piggy-bank"></i> <span id="stashed-booty">0</span></span>
+	<span><i class="far fa-compass"></i> <span id="heading">Island</span></span>
+	<span id="time" style="float:right;">
+		<i id="time-pause" class="fas fa-pause" onclick="pause()"></i>
+		<i id="time-step" class="fas fa-step-forward" style="margin-left:.5rem;"></i>
+		<i id="time-play" class="fas fa-forward" style="margin-left:.5rem;" onclick="play()"></i>
+	</span>
 </div>
 <div style="height:0; flex-grow:1; display:flex; background-color:moccasin;">
 	<div style="padding-bottom:2rem; width:20rem; height:100%; background-color:tan;">
 		<div id="log" style="max-height:100%; padding:0 1rem; overflow:auto;"></div>
 	</div>
-	<div style="position:relative; height:100%; flex-grow:1; text-align:center;">
+	<div style="position:relative; height:100%; width:0; flex-grow:1; text-align:center;">
 		<div id="watermark" style="
 			font-size:20rem; font-family:monospace;
 			position:absolute; width:100%; opacity:.5;"
@@ -57,21 +70,25 @@
 		<div id="port-interface" style="display:none; padding:2rem; font-size:1.5rem;">
 			<div>Port Actions</div>
 			<div style="display:flex; flex-wrap:wrap; justify-content:center; font-size:1rem;">
-				<div style="margin:1rem; border:.1rem solid; padding:1rem;">
+				<div class="port-action">
 					<div id="grog-purchase" style="margin-bottom:1rem;">
 						Buy Grog for <span id="grog-price">1</span> Booty each
 					</div>
 				</div>
-				<div style="margin:1rem; border:.1rem solid; padding:1rem;">
+				<div class="port-action">
 					<div>Booty stash</div>
 					<div id="stash-inputs" style="text-align:left; display:inline-block;"></div>
 				</div>
-				<div style="margin:1rem; border:.1rem solid; padding:1rem;">
-					<div>Recruit new crew member for 1 Booty and 1 Grog</div>
-					<button onclick="recruitPirate(event)" style="margin-top:1rem;">Recruit</button>
+				<div class="port-action">
+					<div>Recruit new crew member for<br/>1 Booty and 1 Grog</div>
+					<button id="recruit-button" onclick="recruitPirate(event)" style="margin-top:1rem;">Recruit</button>
+				</div>
+				<div class="port-action">
+					<div>Buy mansion for 300 Booty (thereby winning the game)</div>
+					<button id="win-button" onclick="win()" style="margin-top:1rem;" disabled="true">Win</button>
 				</div>
 			</div>
-			<button id="finished-port-button" style="margin-top:2rem;">Shove Off</button>
+			<button id="finished-port-button" style="margin-top:1rem;">Shove Off</button>
 		</div>
 		<div id="chooser" style="
 			display:none; height:100%; width:30rem;
@@ -96,13 +113,14 @@
 		</div>
 	</div>
 </div>
-<div style="height:15em; width:100vw; overflow-x:auto; padding:1rem; background-color:#222; color:white;">
+<div style="height:14em; width:100vw; overflow-x:auto; padding:1rem; background-color:#222; color:white;">
 	<div id="crew" style="display:inline-flex;"></div>
 </div>
 
 <script src="names.js"></script>
 <script src="hairstyles.js"></script>
 <script src="gameplay.js"></script>
+<!-- TODO: audit all events to be sure that they log where appropriate and that a mid-event kill will not break anything -->
 <script src="misc-tables.js"></script>
 <script src="crew-events.js"></script>
 <script src="sea-encounters.js"></script>
@@ -128,6 +146,7 @@ async function recruitPirate(event) {
 	if(grog >= 1 && booty >= 1) {
 		incrementGrog(-1);
 		incrementBooty(-1);
+		updateTradableBooty(-1);
 		await rollPirate();
 		switchInterface('port');
 	}
@@ -214,7 +233,7 @@ function updateJobLists() {
 				"
 			>
 				<div>${getPirateName(pirate)}${
-					hasAttribute(pirate, flaw.scrapper) ? `<span style="margin-left:.25rem;">💢</span>` : ''
+					hasAttribute(pirate, flaw.scrapper) ? `<i class="far fa-hand-rock" style="margin-left:.5rem;"></i>` : ''
 				}</div>
 				${nonWorking ? `<div style="font-size:.6rem;">*${nonWorking}</div>` : ''}
 			</div>
@@ -241,6 +260,10 @@ function updateCrewList() {
 		if(element) {
 			element.getElementsByClassName('name')[0].textContent = nameText;
 			element.getElementsByClassName('overlay')[0].setAttribute('title', attributeText);
+			let killButton = element.getElementsByClassName('kill-button');
+			if(killButton.length) {
+				element.removeChild(killButton[0]);
+			}
 		} else {
 			// create new element if there aren't enough existing ones
 			element = inflate(`
@@ -260,6 +283,20 @@ function updateCrewList() {
 				updatePirateEl(pirate, graphic.contentDocument);
 				graphic.style.opacity = 1;
 			}, false);
+		}
+		// if there is a killer in the crew, add the kill button
+		let killers = filterByAttr(crew, legend.killer);
+		if(paused && killers.length) {
+			let killButton = inflate(`
+				<i class="fas fa-crosshairs kill-button"
+					style="font-size:2rem; position:absolute; top:0; right:0; color:#b00; cursor:pointer;"
+				></i>
+			`);
+			element.appendChild(killButton);
+			killButton.addEventListener('click', () => {
+				kill(pirate, `was shot by ${getPirateName(killers[0])}`, true);
+				updateCrewList();
+			});
 		}
 	}
 }
@@ -332,20 +369,63 @@ function updatePirateEl(pirate, el) {
 
 function updateTopBar() {
 	document.getElementById('grog').textContent = grog;
-	document.getElementById('booty').textContent = booty+(stashedBooty ? ` [${stashedBooty} stashed]` : '');
+	document.getElementById('booty').textContent = booty;
+	document.getElementById('stash').style.display = stashedBooty ? 'inline' : 'none';
+	document.getElementById('stashed-booty').textContent = stashedBooty;
 	let cap = getCaptain();
 	document.getElementById('heading').textContent = (cap && cap.permanentFlags.has('whale_obsession')) ?
 		'White Whale' : (headingToIsland ? 'Island' : 'Port')
 	;
+	let playButton = document.getElementById('time-play');
+	let pauseButton = document.getElementById('time-pause');
+	let stepButton = document.getElementById('time-step');
+	let enabled = [];
+	if(autoPlay) {
+		enabled.push(pauseButton);
+	} else {
+		enabled.push(playButton);
+		if(paused) {
+			enabled.push(stepButton);
+		}
+	}
+	[ playButton, pauseButton, stepButton ].forEach(button => {
+		if(enabled.includes(button)) {
+			button.style.opacity = 1;
+			button.style.cursor = 'pointer';
+		} else {
+			button.style.opacity = .5;
+			button.style.cursor = 'default';
+		}
+	});
 }
 
 async function addToLog(message, wait = 1000) {
 	return new Promise(resolve => {
+		let alreadyPaused = paused;
+		if(!autoPlay && !alreadyPaused) {
+			setPaused(true);
+		}
 		let logEl = document.getElementById('log');
 		let entry = inflate(`<div style="background-color:moccasin; margin-top:.5rem; padding:.5rem;">${message}</div>`);
 		logEl.appendChild(entry);
 		entry.scrollIntoView({ behavior: "smooth", block: "end" });
-		window.setTimeout(resolve, wait);
+		if(autoPlay) {
+			window.setTimeout(() => {
+				setPaused(false);
+				resolve();
+			}, wait);
+		} else if(!alreadyPaused) {
+			let listenerName = 'click';
+			['time-step', 'time-play'].forEach(id => {
+				let button = document.getElementById(id);
+				let listener = event => {
+					button.removeEventListener(listenerName, listener);
+					setPaused(false);
+					resolve();
+				};
+				button.addEventListener(listenerName, listener);
+			});
+		}
 	});
 }
 
@@ -379,12 +459,15 @@ function switchInterface(interface) {
 	}
 }
 
-function updatePort(maxTradeAmount=Infinity) {
+function updatePort() {
+	let maxTradeAmount = tradableBooty === null ? Infinity : tradableBooty;
 	// initial setup
 	if(!document.getElementById('grog-purchase-selector')) {
 		let grogAmountSelector = prepareNumberSelect('grog-purchase-selector', 'Buy', purchaseCount => {
-			incrementBooty(-Math.ceil(getGrogPrice()*purchaseCount));
+			let bootyDeficit = -Math.ceil(getGrogPrice()*purchaseCount);
+			incrementBooty(bootyDeficit);
 			incrementGrog(purchaseCount);
+			updateTradableBooty(bootyDeficit);
 		});
 		document.getElementById('grog-purchase').after(grogAmountSelector);
 	}
@@ -393,6 +476,7 @@ function updatePort(maxTradeAmount=Infinity) {
 		let select = prepareNumberSelect('stash-deposit', 'Deposit', value => {
 			incrementBooty(-value);
 			incrementStashedBooty(value);
+			updateTradableBooty(-value);
 		});
 		select.style.marginTop = '1rem';
 		stashContainer.appendChild(select);
@@ -417,6 +501,9 @@ function updatePort(maxTradeAmount=Infinity) {
 	selector = document.getElementById('stash-withdraw');
 	selector.blood4booty.limits.max = stashedBooty;
 	updateNumberSelect(selector);
+	// buttons
+	document.getElementById('recruit-button').disabled = booty < 1 || grog < 1;
+	document.getElementById('win-button').disabled = booty < 300;
 }
 
 async function doPortActions() {
@@ -443,6 +530,7 @@ function updateEventText(prompt, description) {
 
 async function getNumberInput(prompt, description, confirmText, min, max) {
 	switchInterface('event');
+	updateOptions(null);
 	updateEventText(prompt, description);
 	return new Promise((resolve, reject) => {
 		let button = document.getElementById('continue-button');
@@ -471,7 +559,7 @@ function updateOptions(options, onSelected, singleSelect=false) {
 	}
 	for(let opt of options) {
 		let optEl = inflate(`
-			<div style="position:relative; cursor:pointer; align-self:center;">
+			<div style="position:relative; cursor:pointer; align-self:center; margin-bottom:.5rem;">
 				<span style="position:absolute; left:-1em;">${opt.selected ? '✔' : ''}</span>
 				<span>${opt.text}</span>
 			</div>

@@ -18,7 +18,7 @@ const legend = {
 	backstabber: { name: 'The Backstabber', skills: [ skill.stealin, skill.swashbucklin ] },
 	bloody: { name: 'The Bloody', skills: [ skill.shootin, skill.swashbucklin ] },
 	bastard: { name: 'The Bastard', skills: [ skill.swaggerin, skill.stealin ] },
-	killer: { name: 'The Killer', skills: [ skill.swaggerin, skill.shootin ] }, // TODO: respect this
+	killer: { name: 'The Killer', skills: [ skill.swaggerin, skill.shootin ] },
 	plunderer: { name: 'The Plunderer', skills: [ skill.stealin, skill.shootin ] },
 };
 
