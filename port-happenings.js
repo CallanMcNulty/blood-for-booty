@@ -15,7 +15,7 @@ const portHappeningTable = [
 		handler: async () => {
 			let cursedPirate = randomResult(crew);
 			cursedPirate.permanentFlags.add('cursed');
-			await addToLog(`${getPirateName(cursedPirate)} was cursed with exceptional luck`);
+			await addToLog(`${getPirateName(cursedPirate)} was cursed with exceptionally bad luck`);
 		}
 	},
 	{
@@ -47,7 +47,11 @@ const portHappeningTable = [
 		continueText: 'Join in',
 		handler: async () => {
 			let available = filterEventTargets(filterEventActors(crew));
-			let joined = await getChoice('Up to 4 pirates can join the raid. Which ones will go?', pirateOptions(available), false, 4);
+			let joined = await getChoice('Up to 4 pirates can join the raid. Which ones will go?', pirateOptions(available), 0, 4);
+			if(joined.length == 0) {
+				await addToLog('Did not participate in the mansion attack');
+				return;
+			}
 			let result = roll() + joined.length;
 			if(result < 5) {
 				let stolen = roll()
@@ -104,7 +108,7 @@ const portHappeningTable = [
 		description: 'Grog is half price here! 2 Grog may be bought for 1 Booty.',
 		continueText: 'Start saving',
 		handler: async () => {
-			shipVoyageFlags.add('half_grog_cost');
+			shipWeeklyFlags.add('half_grog_cost');
 		}
 	},
 	{
@@ -341,7 +345,7 @@ const portHappeningTable = [
 				if(roll(pirate) == 6) {
 					joined = true;
 					pirate.weeklyFlags.add('striking');
-					await addToLog(`${getPirateName} joined the strike`);
+					await addToLog(`${getPirateName(pirate)} joined the strike`);
 				}
 			}
 			if(joined) {

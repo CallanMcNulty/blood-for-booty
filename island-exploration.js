@@ -232,6 +232,7 @@ const islandExplorationTable = [
 				if(result < 3) {
 					explorers = await killRandomPirates(explorers, 'was shot and dragged off by islanders', 1);
 				} else {
+					await addToLog('Booty recovered');
 					incrementBooty(result);
 				}
 				var stay = await getChoice('Should the team stay?', [
@@ -456,9 +457,10 @@ const islandExplorationTable = [
 			let inCave = [];
 			let waiting = [...explorers];
 			do {
-				var nextPirate = await getChoice('Which pirate should enter the cave next?', pirateOptions(waiting), false, 1);
+				var next = await getChoice('Which pirate should enter the cave next?', pirateOptions(waiting), 0, 1);
 				waiting = waiting.filter(p => p != nextPirate);
-				if(nextPirate) {
+				if(next.length) {
+					let nextPirate = next[0];
 					inCave.push(nextPirate);
 					if(roll(nextPirate) < 5) {
 						await addToLog(`${getPirateName(nextPirate)} did not return from the cave`);

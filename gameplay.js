@@ -103,7 +103,7 @@ function updateTradableBooty(bootyDeficit) {
 }
 
 function getGrogPrice() {
-	return shipVoyageFlags.has('half_grog_cost') ? .5 : 1;
+	return shipWeeklyFlags.has('half_grog_cost') ? .5 : 1;
 }
 
 function getCaptain() {
@@ -171,6 +171,9 @@ function attributeIsFlaw(attr) {
 }
 function attributeIsLegend(attr) {
 	return Object.values(legend).includes(attr);
+}
+function attributeIsFeature(attr) {
+	return Object.values(feature).includes(attr);
 }
 
 function skillValue(pirateGroup, usedSkill) {
@@ -311,7 +314,7 @@ async function rollPirate(withSkills=true) {
 	} while(pirates.some(p => p.name == name));
 	// colors
 	let hairColor = randomResult(['brown', 'goldenrod', 'silver', 'darkorange', 'black']);
-	let clothingColors = ['beige', 'burlywood', 'cadetblue', 'rosybrown', 'mediumpurple', 'salmon', 'darkcyan', 'darkolivegreen', 'dodgerblue', 'cornflowerblue', 'darkseagreen'];
+	let clothingColors = ['beige', 'slategrey', 'cadetblue', 'rosybrown', 'mediumpurple', 'salmon', 'darkcyan', 'darkolivegreen', 'dodgerblue', 'cornflowerblue', 'darkseagreen', 'tomato'];
 	let shirtColor = randomResult(clothingColors);
 	do {
 		var pantsColor = randomResult(clothingColors);
@@ -454,7 +457,14 @@ async function rollOnCaptainsMadnessTable() {
 }
 
 async function doWeek() {
+	saveable = true;
+	updateSaveable();
 	await addToLog(`New week started`, 1500);
+	if(autoSave) {
+		save();
+	}
+	saveable = false;
+	updateSaveable();
 	if(shipPermanentFlags.has('becalmed')) {
 		if(roll() > 3) {
 			shipPermanentFlags.delete('becalmed');
@@ -531,7 +541,7 @@ async function doWeek() {
 	}
 	let helmsmen = filterWorkers(team.helm);
 	let helmSucceeded = helmsmen.includes(getCaptain());
-	if(!getCaptain().voyageFlags.has('no_heading_change') || getCaptain().permanentFlags.has('whale_obsession')) {
+	if(!(getCaptain().voyageFlags.has('no_heading_change') || getCaptain().permanentFlags.has('whale_obsession'))) {
 		if(helmSucceeded) {
 			headingToIsland = await getChoice('What is our heading?', [
 				{ value: true, text: 'Island', selected: headingToIsland },
@@ -626,11 +636,10 @@ async function doWeek() {
 				await rollPirate();
 			}
 			do {
-				shipWeeklyFlags.delete('turtle_transport')
+				shipWeeklyFlags.delete('turtle_transport');
+				let options = filterEventActors(crew).filter(p => !p.permanentFlags.has('caver')).map(w => pirateToOption(w, w.explorer));
 				let chosenExplorers = await getChoice(
-					'We’ve reached an island. Who should be on the exploration team?',
-					filterEventActors(crew).filter(p => !p.permanentFlags.has('caver')).map(w => pirateToOption(w, w.explorer)),
-					false
+					'We’ve reached an island. Who should be on the exploration team?', options, 1, options.length
 				);
 				for(let pirate of crew) {
 					pirate.explorer = chosenExplorers.includes(pirate);
@@ -655,7 +664,7 @@ async function doWeek() {
 						event = randomResult(islandExplorationTable);
 					}
 				}
-				let savedState = serializeGameState();
+				let savedState = JSON.parse(serializeGameState());
 				let explorers = filterExplorers();
 				await showEvent(event, 'Island Exploration', explorers);
 				let fated = explorers.find(p => p.permanentFlags.has('fated'));
@@ -759,11 +768,11 @@ async function doWeek() {
 					happening = randomResult(islandExplorationTable);
 				}
 			}
+			await showEvent(happening, 'Port Happening');
 			if(!shipWeeklyFlags.has('skip_port_actions')) {
-				let crewNeedingNecessities = crew.filter(p => p.weeklyFlags.has('striking'));
+				let crewNeedingNecessities = crew.filter(p => !p.weeklyFlags.has('striking'));
 				let necessityCost = shipWeeklyFlags.has('no_port_cost') ? 0 : (shipWeeklyFlags.has('double_port_cost') ? 2 : 1);
 				incrementBooty(-crewNeedingNecessities.length * necessityCost);
-				await showEvent(happening, 'Port Happening');
 				// handle backstabber
 				let backstabber = filterByAttr(crew, legend.backstabber)[0];
 				if(backstabber) {
@@ -841,7 +850,7 @@ async function doWeek() {
 	}
 	// extra week-end stuff
 	if(startedWeekWithBrokenMast && shipPermanentFlags.has('broken_mast') && roll() > 2) {
-		console.log('broken mast repaired');
+		await addToLog('Broken mast repaired');
 		shipPermanentFlags.delete('broken_mast');
 	}
 	if(shipVoyageFlags.has('rats')) {
@@ -934,7 +943,7 @@ function serializeGameState() {
 		copy.voyageFlags = Array.from(p.voyageFlags);
 		copy.permanentFlags = Array.from(p.permanentFlags);
 	}
-	return JSON.parse(JSON.stringify({
+	return JSON.stringify({
 		grog: grog,
 		booty: booty,
 		stashedBooty: stashedBooty,
@@ -946,7 +955,7 @@ function serializeGameState() {
 		shipWeeklyFlags: Array.from(shipWeeklyFlags),
 		shipVoyageFlags: Array.from(shipVoyageFlags),
 		shipPermanentFlags: Array.from(shipPermanentFlags),
-	}));
+	});
 }
 
 function loadGameState(saved) {
@@ -983,7 +992,19 @@ function loadGameState(saved) {
 	updateCrewList();
 }
 
-function beginGame() {
+function save() {
+	if(saveable) {
+		localStorage.setItem('saved-game', serializeGameState());
+	}
+}
+
+function load() {
+	resetGlobals();
+	loadGameState(JSON.parse(localStorage.getItem('saved-game')));
+	playGame();
+}
+
+function resetGlobals() {
 	grog = 40;
 	booty = 0;
 	stashedBooty = 0;
@@ -997,10 +1018,15 @@ function beginGame() {
 	shipPermanentFlags = new Set();
 	autoPlay = true;
 	paused = false;
+	saveable = false;
+	autoSave = false;
+	updateTopBar();
+	clearLog();
+}
 
+function beginGame() {
+	resetGlobals();
 	(async () => {
-		updateTopBar();
-		clearLog();
 		await addToLog(`Generating starting crew`, 1500);
 		for(let i=0; i<8; i++) {
 			let newPirate = await rollPirate();

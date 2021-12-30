@@ -117,7 +117,6 @@ const nameList = [
 'Jordan',
 'Joseph',
 'Joshua',
-'Joyce',
 'Julian',
 'Justin',
 'Karl',

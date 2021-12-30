@@ -345,7 +345,10 @@ const crewEventTable = [
 		description: 'A pirate wants a new name',
 		continueText: 'Humor them',
 		handler: async () => {
-			// TODO: implement
+			let pirate = await getChoice('Which pirate gets the new name?', pirateOptions(crew));
+			pirate.permanentFlags.add('name-change');
+			updatePirateView(pirate);
+			await waitForPirateView();
 		}
 	},
 	{
@@ -366,8 +369,8 @@ const crewEventTable = [
 		description: 'Could anyone on our crew be at risk of contracting gangrene?',
 		continueText: 'Let’s see',
 		handler: async () => {
-			let dismembered = crew.filter(
-				pirate => hasAttribute(pirate, feature.pegLeg) ||
+			let dismembered = crew.filter(pirate =>
+				hasAttribute(pirate, feature.pegLeg) ||
 				hasAttribute(pirate, feature.hook) ||
 				hasAttribute(pirate, feature.leftHook)
 			);
@@ -441,7 +444,7 @@ const crewEventTable = [
 		continueText: 'Dive!',
 		handler: async () => {
 			let availableCrew = filterEventActors(crew);
-			let divers = await getChoice('Who will go pearl diving?', pirateOptions(availableCrew), false);
+			let divers = await getChoice('Who will go pearl diving?', pirateOptions(availableCrew), 0, availableCrew.length);
 			for(let diver of divers) {
 				if(!crew.includes(diver)) {
 					continue;

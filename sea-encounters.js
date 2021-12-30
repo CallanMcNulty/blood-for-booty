@@ -42,6 +42,7 @@ const seaEncounterTable = [
 					break;
 				case 2:
 					let deathCount = roll();
+					let availableCrew = filterEventTargets(crew);
 					await killRandomPirates(availableCrew, 'died when the ship struck an iceberg', deathCount);
 					break;
 			}
@@ -129,7 +130,7 @@ const seaEncounterTable = [
 		continueText: 'Sail for Port',
 		handler: async () => {
 			headingToIsland = false;
-			shipVoyageFlags.add('no_heading_change');
+			getCaptain().voyageFlags.add('no_heading_change');
 		}
 	},
 	{
@@ -176,7 +177,7 @@ const seaEncounterTable = [
 				{ value: 0, text: 'a crew member' },
 				{ value: 1, text: '1-6 grog' },
 				{ value: 2, text: '1-6 booty' },
-			], true, 2);
+			], 2, 2);
 			for(let choice of choices) {
 				switch(choice) {
 					case 0:
