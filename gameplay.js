@@ -641,6 +641,9 @@ async function doWeek() {
 				let chosenExplorers = await getChoice(
 					'We’ve reached an island. Who should be on the exploration team?', options, 1, options.length
 				);
+				if(options.length == 1) {
+					chosenExplorers = [ chosenExplorers ];
+				}
 				for(let pirate of crew) {
 					pirate.explorer = chosenExplorers.includes(pirate);
 				}
@@ -999,9 +1002,13 @@ function save() {
 }
 
 function load() {
-	resetGlobals();
-	loadGameState(JSON.parse(localStorage.getItem('saved-game')));
-	playGame();
+	let saved = localStorage.getItem('saved-game');
+	if(saved) {
+		resetGlobals();
+		loadGameState(JSON.parse(saved));
+		switchInterface();
+		playGame();
+	}
 }
 
 function resetGlobals() {

@@ -102,11 +102,10 @@
 		</div>
 		<div id="chooser" style="
 			display:none; height:100%; width:30rem;
-			flex-direction:column;
-			padding:2rem; padding-bottom:4rem; font-size:1.5rem;
+			flex-direction:column; padding:2rem; font-size:1.5rem;
 		">
 			<div id="prompt">Prompt</div>
-			<div style="font-size:1.2rem; padding:2rem 0; height:0; flex-grow:1; max-height:25rem;">
+			<div style="font-size:1.2rem; padding:2rem 0 1rem; height:0; flex-grow:1; max-height:25rem;">
 				<div id="description"></div>
 				<div id="options" style="height:100%; display:flex; flex-direction:column; flex-wrap:wrap;"></div>
 			</div>
@@ -154,6 +153,10 @@
 			<div style="margin-top:1rem;">
 				<button onclick="updateShipView(false)">Back</button>
 			</div>
+		</div>
+		<div id="splash-screen" style="font-size:2rem; height:100%; width:100%; background-color:inherit; position:absolute; padding:4rem;">
+			<div style="font-size:4rem;">Blood for Booty</div>
+			<button style="margin:3rem;" onclick="newGame()">Start New Game</button>
 		</div>
 	</div>
 </div>
@@ -608,6 +611,9 @@ function updatePirateSvg(pirate, el) {
 }
 
 function updateTopBar() {
+	if(typeof autoSave === 'undefined') {
+		return;
+	}
 	document.getElementById('grog').textContent = grog;
 	document.getElementById('booty').textContent = booty;
 	document.getElementById('stash').style.display = stashedBooty ? 'inline' : 'none';
@@ -675,15 +681,20 @@ function clearLog() {
 }
 
 function switchInterface(interface) {
+	let splashInterface = document.getElementById('splash-screen');
 	let watermark = document.getElementById('watermark');
 	let eventInterface = document.getElementById('chooser');
 	let portInterface = document.getElementById('port-interface');
 	let jobInterface = document.getElementById('job-interface');
+	splashInterface.style.display = 'none';
 	eventInterface.style.display = 'none';
 	portInterface.style.display = 'none';
 	jobInterface.style.display = 'none';
 	watermark.style.display = 'none';
 	switch(interface) {
+		case 'splash':
+			splashInterface.style.display = 'block';
+			break;
 		case 'event':
 			eventInterface.style.display = 'inline-flex';
 			break;
@@ -907,6 +918,11 @@ async function showEvent(event, type, arg) {
 	}
 }
 
+function newGame() {
+	switchInterface();
+	beginGame();
+}
+
 // initial UI setup
 let jobs = [
 	{
@@ -951,9 +967,6 @@ jobs.forEach(job => {
 	});
 	jobHolder.appendChild(area);
 });
-
-// start game
-beginGame();
 
 </script>
 </body>
