@@ -64,20 +64,20 @@
 		<span style="margin-right:1rem;"><i class="far fa-compass"></i> <span id="heading">Island</span></span>
 	</span>
 	<span id="time" style="margin-left:auto;">
-		<i id="time-pause" class="fas fa-pause" onclick="pause()"></i>
+		<i id="time-pause" class="fas fa-pause" style="display:none;" onclick="pause()"></i>
+		<i id="time-play" class="fas fa-play" onclick="play()"></i>
 		<i id="time-step" class="fas fa-step-forward" style="margin-left:.5rem;"></i>
-		<i id="time-play" class="fas fa-forward" style="margin-left:.5rem;" onclick="play()"></i>
 	</span>
 </div>
-<div style="height:0; flex-grow:1; display:flex;">
-	<div style="padding-bottom:2rem; width:20rem; height:100%; background-color:tan;">
+<div id="page-body" style="height:0; flex-grow:1; display:flex; position:relative">
+	<div id="log-holder" style="padding-bottom:2rem; width:20rem; height:100%; background-color:tan;">
 		<div id="log" style="max-height:100%; padding:0 1rem; overflow:auto;"></div>
 	</div>
-	<div style="position:relative; height:100%; width:0; flex-grow:1; text-align:center; background-color:moccasin;">
-		<div id="watermark" style="font-size:20rem; position:absolute; width:100%; opacity:.5;">
-			<i class="fas fa-skull-crossbones"></i>
+	<div id="main" style="position:relative; height:100%; width:0; flex-grow:1; text-align:center; top:0;">
+		<div id="watermark" style="font-size:20rem; position:absolute; width:100%; height:100%; display:none; background-color:moccasin;">
+			<i class="fas fa-skull-crossbones" style="opacity:.5;"></i>
 		</div>
-		<div id="port-interface" style="display:none; padding:2rem; font-size:1.5rem;">
+		<div id="port-interface" style="display:none; padding:2rem; font-size:1.5rem; height:100%; overflow:auto; background-color:moccasin;">
 			<div>Port Actions</div>
 			<div style="display:flex; flex-wrap:wrap; justify-content:center; font-size:1rem;">
 				<div class="port-action">
@@ -100,27 +100,28 @@
 			</div>
 			<button id="finished-port-button" style="margin-top:1rem;">Shove Off</button>
 		</div>
-		<div id="chooser" style="
-			display:none; height:100%; width:30rem;
-			flex-direction:column; padding:2rem; font-size:1.5rem;
-		">
-			<div id="prompt">Prompt</div>
-			<div style="font-size:1.2rem; padding:2rem 0 1rem; height:0; flex-grow:1; max-height:25rem;">
-				<div id="description"></div>
-				<div id="options" style="height:100%; display:flex; flex-direction:column; flex-wrap:wrap;"></div>
+		<div id="chooser" style="display:none; height:100%; width:100%; background-color:moccasin; justify-content:center;">
+			<div style="max-width:30rem; width:100%; height:100%; display:flex; flex-direction:column; padding:2rem; font-size:1.5rem;">
+				<div id="prompt">Prompt</div>
+				<div style="font-size:1.2rem; padding:2rem 0 1rem; height:0; flex-grow:1; max-height:25rem;">
+					<div id="description"></div>
+					<div id="options" style="height:100%; display:flex; flex-direction:column; flex-wrap:wrap;"></div>
+				</div>
+				<button id="continue-button">Continue</button>
 			</div>
-			<button id="continue-button">Continue</button>
 		</div>
-		<div id="job-interface" style="display:none; height:100%; flex-direction:column; padding:2rem; font-size:1.5rem;">
-			<div>Assign Jobs</div>
-			<div id="job-area-holder" style="
-				display:flex; justify-content:space-between;
-				width:31rem; height:0; flex-grow:1;
-				padding-bottom:1rem; font-size:1rem;
-			"></div>
-			<button id="finished-assignment-button">Continue</button>
+		<div id="job-interface" style="display:none; height:100%; width:100%; justify-content:center; background-color:moccasin;">
+			<div style="display:flex; height:100%; width:100%; max-width:35rem; flex-direction:column; padding:2rem .5rem; font-size:1.5rem;">
+				<div>Assign Jobs</div>
+				<div id="job-area-holder" style="
+					display:flex; justify-content:space-between;
+					height:0; flex-grow:1;
+					padding-bottom:1rem; font-size:1rem;
+				"></div>
+				<button id="finished-assignment-button">Continue</button>
+			</div>
 		</div>
-		<div id="pirate-view" style="position:absolute; top:0; height:100%; width:100%; display:none; flex-direction:column; background-color:inherit; padding:1rem;">
+		<div id="pirate-view" style="position:absolute; top:0; height:100%; width:100%; display:none; flex-direction:column; background-color:moccasin; padding:1rem;">
 			<div style="font-size:2rem; padding-bottom:1rem;">
 				<span id="main-pirate-name">
 					<span id="pirate-name">Pirate</span>
@@ -147,14 +148,14 @@
 		<div id="ship-view" style="
 			position:absolute; top:0; height:100%; width:100%;
 			display:none; flex-direction:column; align-items:center;
-			background-color:inherit; padding:2rem; font-size:1.5rem;
+			background-color:moccasin; padding:2rem; font-size:1.5rem;
 		">
 			<div id="ship-flag-holder" style="height:0; width:30rem; flex-grow:1; overflow:auto; text-align:left; border:0.1rem solid; padding:1rem;"></div>
 			<div style="margin-top:1rem;">
 				<button onclick="updateShipView(false)">Back</button>
 			</div>
 		</div>
-		<div id="splash-screen" style="font-size:2rem; height:100%; width:100%; background-color:inherit; position:absolute; padding:4rem;">
+		<div id="splash-screen" style="font-size:2rem; height:100%; width:100%; background-color:moccasin; position:absolute; padding:4rem;">
 			<div style="font-size:4rem;">Blood for Booty</div>
 			<button style="margin:3rem;" onclick="newGame()">Start New Game</button>
 		</div>
@@ -277,7 +278,7 @@ function prepareNumberSelect(id, confirmText, listener) {
 	return element;
 }
 
-function updateJobLists() {
+function updateJobLists(selectedCrew) {
 	let areas = {
 		unassigned: document.getElementById('unassigned-area'),
 		helm: document.getElementById('helm-area'),
@@ -291,6 +292,8 @@ function updateJobLists() {
 		sails: crew.filter(p => p.job == 'sails'),
 	};
 	[...crew].sort((a,b) => a.lastMoved - b.lastMoved).forEach(pirate => {
+		let jobId = pirate.job || 'unassigned';
+		let jobIndex = jobs.findIndex(j => j.id == jobId);
 		let nonWorking = cannotWork(pirate, pirate.job ? team[pirate.job] : []);
 		let listItem = inflate(`
 			<div
@@ -309,14 +312,53 @@ function updateJobLists() {
 					hasAttribute(pirate, flaw.scrapper) ? `<i class="far fa-hand-rock" style="margin-left:.5rem;"></i>` : ''
 				}</div>
 				${nonWorking ? `<div style="font-size:.6rem;">*${nonWorking}</div>` : ''}
+				${pirate == selectedCrew ? `
+					<div style="display:flex; justify-content:space-between; align-items:center;">
+						<div class="move-crew-left">
+							${jobIndex > 0 ? `
+								<i class="fas fa-arrow-left"></i>
+							` : ''}
+						</div>
+						<div style="font-size:.6rem;">Move</div>
+						<div class="move-crew-right">
+							${jobIndex < jobs.length-1 ? `
+								<i class="fas fa-arrow-right"></i>
+							` : ''}
+						</div>
+					</div>
+				` : ''}
 			</div>
 		`);
+		areas[jobId].appendChild(listItem);
+		if(mobileView && !pirate.captain) {
+			if(pirate != selectedCrew) {
+				listItem.addEventListener('click', () => updateJobLists(pirate));
+			} else {
+				listItem.scrollIntoView({ behavior: "smooth", block: "end" });
+			}
+			let moveButtonLeft = listItem.getElementsByClassName('move-crew-left')[0];
+			let moveButtonRight = listItem.getElementsByClassName('move-crew-right')[0];
+			if(moveButtonLeft) {
+				moveButtonLeft.addEventListener('click', () => assignPirateToJob(pirate, jobs[jobIndex - 1]));
+			}
+			if(moveButtonRight) {
+				moveButtonRight.addEventListener('click', () => assignPirateToJob(pirate, jobs[jobIndex + 1]));
+			}
+		}
 		listItem.addEventListener('dragstart', ev => {
 			ev.dataTransfer.setData('text/plain', crew.indexOf(pirate).toString());
 			ev.dataTransfer.dropEffect = 'move';
 		});
-		areas[pirate.job || 'unassigned'].appendChild(listItem);
 	});
+}
+
+function assignPirateToJob(pirate, job) {
+	let newJob = job.id == 'unassigned' ? null : job.id;
+	if(pirate.job != newJob) {
+		pirate.job = newJob;
+		pirate.lastMoved = Date.now();
+		updateJobLists(mobileView ? pirate : null);
+	}
 }
 
 function updateCrewList() {
@@ -394,6 +436,7 @@ function updateShipView(shown) {
 function updatePirateView(pirate) {
 	document.getElementById('pirate-view').style.display = pirate ? 'flex' : 'none';
 	if(pirate == null) {
+		updateNameChanger(null);
 		return;
 	}
 	// name changer
@@ -505,7 +548,7 @@ function updateNameChanger(pirate, withExtraOptions=false) {
 				locationInput.value = '';
 				let appellationBits = [];
 				if(noun) {
-					appellationBits.push(`the ${noun}`);
+					appellationBits.push(noun);
 				}
 				if(location) {
 					appellationBits.push(`of ${location}`);
@@ -515,6 +558,7 @@ function updateNameChanger(pirate, withExtraOptions=false) {
 				}
 				
 			}
+			pirate.permanentFlags.delete('name-change');
 			updatePirateView(pirate);
 			updateCrewList();
 			updateNameChanger(null);
@@ -628,11 +672,15 @@ function updateTopBar() {
 	let enabled = [];
 	if(autoPlay) {
 		enabled.push(pauseButton);
+		pauseButton.style.display = 'inline-block';
+		playButton.style.display = 'none';
 	} else {
 		enabled.push(playButton);
 		if(paused) {
 			enabled.push(stepButton);
 		}
+		pauseButton.style.display = 'none';
+		playButton.style.display = 'inline-block';
 	}
 	[ playButton, pauseButton, stepButton ].forEach(button => {
 		if(enabled.includes(button)) {
@@ -696,16 +744,18 @@ function switchInterface(interface) {
 			splashInterface.style.display = 'block';
 			break;
 		case 'event':
-			eventInterface.style.display = 'inline-flex';
+			eventInterface.style.display = 'flex';
 			break;
 		case 'job':
-			jobInterface.style.display = 'inline-flex';
+			jobInterface.style.display = 'flex';
 			break;
 		case 'port':
 			portInterface.style.display = 'block';
 			break;
 		default:
-			watermark.style.display = 'block';
+			if(!mobileView) {
+				watermark.style.display = 'block';
+			}
 			break;
 	}
 }
@@ -943,9 +993,9 @@ let jobs = [
 	},
 ];
 let jobHolder = document.getElementById('job-area-holder');
-jobs.forEach(job => {
+jobs.forEach((job, i) => {
 	let area = inflate(`
-		<div style="display:flex; flex-direction:column; width:7rem;">
+		<div style="display:flex; flex-direction:column; width:7rem; margin${i==1 ? ':0 .5rem' : (i==2 ? '-right:.5rem' : '0')};">
 			<div>${job.name}</div>
 			<div id="${job.id}-area" style="background-color:tan; flex-grow:1; overflow:auto; padding:.5rem;"></div>
 		</div>
@@ -957,16 +1007,30 @@ jobs.forEach(job => {
 		if(job.id != 'helm' || crew.filter(p => p.job == 'helm').length < 2) {
 			let index = parseInt(ev.dataTransfer.getData('text/plain'));
 			let pirate = crew[index];
-			let newJob = job.id == 'unassigned' ? null : job.id;
-			if(pirate.job != newJob) {
-				pirate.job = newJob;
-				pirate.lastMoved = Date.now();
-				updateJobLists();
-			}
+			assignPirateToJob(pirate, job);
 		}
 	});
 	jobHolder.appendChild(area);
 });
+
+// the one UI global
+mobileView = false;
+function checkScreenSize() {
+	let enteredMobileView = window.innerWidth < 700 || !('draggable' in document.createElement('div'));
+	if(enteredMobileView != mobileView) {
+		mobileView = enteredMobileView;
+		onMobileModeUpdated();
+	}
+}
+window.onresize = checkScreenSize;
+checkScreenSize();
+function onMobileModeUpdated() {
+	document.getElementById('page-body').style.display = mobileView ? 'block' : 'flex';
+	document.getElementById('log-holder').style.width = mobileView ? '100%' : '20rem';
+	let mainDisplay = document.getElementById('main');
+	mainDisplay.style.position = mobileView ? 'absolute' : 'relative';
+	mainDisplay.style.width = mobileView ? '100%' : 'none';
+}
 
 </script>
 </body>

@@ -26,25 +26,31 @@ function randomResult(array, exclude=[]) {
 
 function getPirateName(pirate) {
 	let legend = pirate.attributes.find(a => attributeIsLegend(a));
-	let appellation = pirate.appellation || (legend ? legend.name : '');
+	let appellations = [];
+	if(legend) {
+		appellations.push(legend.name);
+	}
+	if(pirate.appellation) {
+		appellations.push(pirate.appellation);
+	}
 	let nickname = pirate.nickname;
-	if(hasAttribute(pirate, feature.blind) && hasAttribute(pirate, feature.noNose)) {
-		nickname = 'Senseless';
+	if(pirate.colors[0] == 'silver' && (hasAttribute(pirate, feature.blind) || hasAttribute(pirate, feature.beard) || hasAttribute(pirate, feature.toothless))) {
+		nickname = 'Old';
 	}
 	if(hasAttribute(pirate, feature.hook) && hasAttribute(pirate, feature.leftHook)) {
 		nickname = 'Hooks';
 	}
+	if(hasAttribute(pirate, feature.blind) && hasAttribute(pirate, feature.noNose)) {
+		nickname = 'Senseless';
+	}
 	if(hasAttribute(pirate, feature.eyepatch) && hasAttribute(pirate, feature.pegLeg) && hasAttribute(pirate, feature.leftHook)) {
 		nickname = 'Half';
 	}
-	if(pirate.colors[0] == 'silver' && (hasAttribute(pirate, feature.blind) || hasAttribute(pirate, feature.beard) || hasAttribute(pirate, feature.toothless))) {
-		nickname = 'Old';
+	if([hasAttribute(pirate, feature.parrot), hasAttribute(pirate, feature.monkey), hasAttribute(pirate, feature.crab), hasAttribute(pirate, feature.rat)].filter(v => v).length > 2) {
+		nickname = 'Beastmaster';
 	}
 	if(pirate.voyageFlags.has('jig_king')) {
 		nickname = 'Jig King';
-	}
-	if([hasAttribute(pirate, feature.parrot), hasAttribute(pirate, feature.monkey), hasAttribute(pirate, feature.crab), hasAttribute(pirate, feature.rat)].filter(v => v).length > 2) {
-		nickname = 'Beastmaster';
 	}
 	let names = [];
 	if(pirate.captain) {
@@ -54,8 +60,8 @@ function getPirateName(pirate) {
 		names.push(`“${nickname}”`);
 	}
 	names.push(pirate.name);
-	if(appellation) {
-		names.push(appellation);
+	if(appellations.length) {
+		names.push(`the ${appellations.join(', ')}`);
 	}
 	return names.join(' ');
 }
@@ -768,7 +774,7 @@ async function doWeek() {
 					{ value: false, text: 'No, this port is fine' },
 				]);
 				if(reroll) {
-					happening = randomResult(islandExplorationTable);
+					happening = randomResult(portHappeningTable);
 				}
 			}
 			await showEvent(happening, 'Port Happening');

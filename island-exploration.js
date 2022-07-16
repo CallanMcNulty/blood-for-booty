@@ -445,7 +445,7 @@ const islandExplorationTable = [
 				nonParrotOwners.splice(nonParrotOwners.indexOf(pirate), 1);
 				await addAttribute(pirate, feature.parrot);
 			}
-			return { description:'Some parrots were tamed. No Booty, though.' };
+			return { description:'Some parrots were tamed. No Booty though.' };
 		}
 	},
 	{
@@ -540,8 +540,9 @@ const islandExplorationTable = [
 		continueText: 'Head to the spot',
 		handler: async (explorers) => {
 			explorers = filterEventTargets(explorers);
-			while(cont) {
-				var cont = await getChoice(cont === undefined ? 'Dig?' : 'Continue digging?', [
+			let cont = undefined;
+			while(cont || cont === undefined) {
+				cont = await getChoice(cont === undefined ? 'Dig?' : 'Continue digging?', [
 					{ value: true, text: 'Yes, the treasure must be found!' },
 					{ value: false, text: 'No, those giant birds look hungry.' }
 				]);

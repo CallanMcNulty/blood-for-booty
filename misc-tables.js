@@ -14,23 +14,23 @@ const flaw = {
 };
 
 const legend = {
-	terrible: { name: 'The Terrible', skills: [ skill.swaggerin, skill.swashbucklin ], description:'Any pirates put on a job with this pirate ignore the effects of Seasick and Scrapper Flaws.' },
-	backstabber: { name: 'The Backstabber', skills: [ skill.stealin, skill.swashbucklin ], description:'Whenever this pirate returns to port they will murder a few people and gain 1-6 Booty. However, there is a 1 in 6 chance they get thrown in jail until the next time the ship returns to port.' },
-	bloody: { name: 'The Bloody', skills: [ skill.shootin, skill.swashbucklin ], description:'Whenever this pirate would be killed, there is a 1 in 2 chance that they manage to claw themselves out of the situation somehow and are unharmed.' },
-	bastard: { name: 'The Bastard', skills: [ skill.swaggerin, skill.stealin ], description:'This pirate has an enemy in every port. Upon arriving in port they get in a few brawls and may be killed or may beat up an enemy so badly they join the crew out of admiration.' },
-	killer: { name: 'The Killer', skills: [ skill.swaggerin, skill.shootin ], description:'Whenever you wish you may pause the game and have this pirate shoot another crew member dead.' },
-	plunderer: { name: 'The Plunderer', skills: [ skill.stealin, skill.shootin ], description:'Whenever the crew gain any Booty with this pirate present they gain an additional 1-6 Booty.' },
+	terrible: { name: 'Terrible', skills: [ skill.swaggerin, skill.swashbucklin ], description:'Any pirates put on a job with this pirate ignore the effects of Seasick and Scrapper Flaws.' },
+	backstabber: { name: 'Backstabber', skills: [ skill.stealin, skill.swashbucklin ], description:'Whenever this pirate returns to port they will murder a few people and gain 1-6 Booty. However, there is a 1 in 6 chance they get thrown in jail until the next time the ship returns to port.' },
+	bloody: { name: 'Bloody', skills: [ skill.shootin, skill.swashbucklin ], description:'Whenever this pirate would be killed, there is a 1 in 2 chance that they manage to claw themselves out of the situation somehow and are unharmed.' },
+	bastard: { name: 'Bastard', skills: [ skill.swaggerin, skill.stealin ], description:'This pirate has an enemy in every port. Upon arriving in port they get in a few brawls and may be killed or may beat up an enemy so badly they join the crew out of admiration.' },
+	killer: { name: 'Killer', skills: [ skill.swaggerin, skill.shootin ], description:'Whenever you wish you may pause the game and have this pirate shoot another crew member dead.' },
+	plunderer: { name: 'Plunderer', skills: [ skill.stealin, skill.shootin ], description:'Whenever the crew gain any Booty with this pirate present they gain an additional 1-6 Booty.' },
 };
 
 const feature = {
-	noNose: { name: 'No Nose', description:'Q: But how do they smell? A: Terrible.' },
+	noNose: { name: 'No Nose', description:'Question: If they have no nose, then how do they smell? Answer: Terrible.' },
 	blind: { name: 'Blind', description:'When an eyepatch doesn’t cut it anymore.' },
 	parrot: { name: 'Parrot', description:'Better stay stocked up on crackers.' },
 	toothless: { name: 'Toothless', description:'No good dentists on a pirate ship.' },
 	eyepatch: { name: 'Eyepatch', description:'Classic.' },
 	beard: { name: 'Beard', description:'Be it black, red, or brown, a beard is the mark of a true pirate.' },
 	pegLeg: { name: 'Peg Leg', description:'Your leg’s off, but don’t worry—we put on a table leg instead!' },
-	hook: { name: 'Hook', description:'We’re all hooked now.' },
+	hook: { name: 'Hook', description:'They’ve got us all hooked.' },
 	tattoos: { name: 'Tattoos', description:'All inked up.' },
 	monkey: { name: 'Monkey', description:'"Eeeee eeeee oooooo ooo aaaaha eeee aaaaah!"' },
 	leftHook: { name: 'Lefty Hook', description:'Like a normal hook, but for left-handed pirates.' },
