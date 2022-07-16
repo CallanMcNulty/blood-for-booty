@@ -697,14 +697,23 @@
        rx="0.26458332"
        ry="0.39687613" />
   </g>
-  <ellipse
-     style="display:inline;fill:#e9afaf;stroke-width:0.948684"
+  <g
      id="nose"
-     cx="17.203709"
-     cy="11.641669"
-     rx="1.9843754"
-     ry="2.3812513"
-     inkscape:label="nose" />
+     inkscape:label="nose">
+    <ellipse
+       id="nose-skin"
+       style="display:inline;fill:#e9afaf;stroke-width:0.948684"
+       cx="17.203709"
+       cy="11.641669"
+       rx="1.9843754"
+       ry="2.3812513"/>
+    <ellipse
+       style="display:inline;fill:#590000;stroke-width:0.948684;fill-opacity:.2"
+       cx="17.203709"
+       cy="11.641669"
+       rx="1.9843754"
+       ry="2.3812513"/>
+  </g>
   <ellipse
      style="display:inline;fill:url(#radialGradient1176);fill-opacity:1;stroke-width:0.0815738"
      id="drunk-blush"

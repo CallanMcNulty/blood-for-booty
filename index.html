@@ -636,15 +636,16 @@ function updatePirateSvg(pirate, el) {
 	for(let eyeEl of eyes) {
 		eyeEl.style.fill = targetColor;
 	}
+	['head', 'arms', 'hand', 'left-hand', 'nose-skin'].forEach(id => el.getElementById(id).style.fill = pirate.colors[0]);
 	let mouth = el.getElementById('full-mouth');
 	mouth.style.transform = hasAttribute(pirate, flaw.scaredy) ? 'scale(1, -1) translateY(-85%)' : '';
 	let topClothes = [ el.getElementById('shirt'), el.getElementById('bandanna') ];
 	for(let topEl of topClothes) {
-		topEl.style.fill = pirate.colors[1];
+		topEl.style.fill = pirate.colors[2];
 	}
-	el.getElementById('pants').style.fill = pirate.colors[2];
+	el.getElementById('pants').style.fill = pirate.colors[3];
 	for(let hairId of hairIds) {
-		el.getElementById(hairId).style.fill = pirate.colors[0];
+		el.getElementById(hairId).style.fill = pirate.colors[1];
 	}
 	for(let hairId of hairParts) {
 		let shown = pirate.hair.parts.includes(hairId) &&

@@ -34,7 +34,7 @@ function getPirateName(pirate) {
 		appellations.push(pirate.appellation);
 	}
 	let nickname = pirate.nickname;
-	if(pirate.colors[0] == 'silver' && (hasAttribute(pirate, feature.blind) || hasAttribute(pirate, feature.beard) || hasAttribute(pirate, feature.toothless))) {
+	if(pirate.colors[1] == 'silver' && (hasAttribute(pirate, feature.blind) || hasAttribute(pirate, feature.beard) || hasAttribute(pirate, feature.toothless))) {
 		nickname = 'Old';
 	}
 	if(hasAttribute(pirate, feature.hook) && hasAttribute(pirate, feature.leftHook)) {
@@ -319,7 +319,17 @@ async function rollPirate(withSkills=true) {
 		var name = randomResult(nameList);
 	} while(pirates.some(p => p.name == name));
 	// colors
-	let hairColor = randomResult(['brown', 'goldenrod', 'silver', 'darkorange', 'black']);
+	let skinColors = ['lemonchiffon', 'cornsilk', 'blanchedalmond', 'bisque', 'peachpuff', 'navajowhite', 'wheat', 'burlywood', 'sandybrown', 'darksalmon', 'peru', 'chocolate', 'sienna', 'saddlebrown'];
+	let skinIndex = randomInt(skinColors.length);
+	let skinColor = skinColors[skinIndex];
+	// weird logic to make sure hair color works with skin color
+	let hairColors = ['black', 'saddlebrown', 'brown', 'goldenrod', 'darkorange', 'palegoldenrod', 'silver'];
+	let hairColor = hairColors[hairColors.length-1];
+	if(randomInt(10) < 9) {
+		let hairIndexMax = Math.ceil((1 - (skinIndex / skinColors.length)) * (hairColors.length  - 1));
+		console.log(skinIndex, hairIndexMax);
+		hairColor = hairColors[randomInt(hairIndexMax)];
+	}
 	let clothingColors = ['beige', 'slategrey', 'cadetblue', 'rosybrown', 'mediumpurple', 'salmon', 'darkcyan', 'darkolivegreen', 'dodgerblue', 'cornflowerblue', 'darkseagreen', 'tomato'];
 	let shirtColor = randomResult(clothingColors);
 	do {
@@ -342,7 +352,7 @@ async function rollPirate(withSkills=true) {
 		colors: [],
 		lastMoved: 0,
 	};
-	newPirate.colors = [hairColor, shirtColor, pantsColor];
+	newPirate.colors = [skinColor, hairColor, shirtColor, pantsColor];
 	newPirate.hair = randomResult(hairstyles);
 	// mechanical stuff
 	if(
