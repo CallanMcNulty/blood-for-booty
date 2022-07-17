@@ -302,7 +302,7 @@ const crewEventTable = [
 			do {
 				var availableCrew = filterEventActors(filterEventTargets(crew));
 				if(availableCrew.length) {
-					await kill(await getChoice('Which pirate will be murdered?', pirateOptions(availableCrew)), 'was murdered');
+					await kill(await getChoice('Which pirate will be murdered?', pirateOptions(availableCrew)), 'was murdered', true);
 				} else {
 					break;
 				}
@@ -455,6 +455,8 @@ const crewEventTable = [
 				} else if(result > 4) {
 					await addToLog(`${getPirateName(diver)} successfully recovered a pearl.`);
 					incrementBooty(result);
+				} else {
+					await addToLog(`${getPirateName(diver)} could not find any pearls.`);
 				}
 			}
 			if(!divers.length) {

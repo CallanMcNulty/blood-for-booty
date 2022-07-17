@@ -184,7 +184,7 @@ const portHappeningTable = [
 			for(let pirate of availableCrew) {
 				let result = roll(pirate);
 				if(result == 1) {
-					await kill(pirate, 'was killed by a brigand', false);
+					await kill(pirate, 'was killed by a brigand', true);
 				} else if(result == 2) {
 					incrementBooty(-1);
 					await addToLog(`${getPirateName(pirate)} was robbed of 1 Booty`);

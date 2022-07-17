@@ -267,14 +267,16 @@ const islandExplorationTable = [
 			let result = roll();
 			if(result < 4) {
 				incrementBooty(10);
+				await addToLog(`Recovered 10 Booty`);
 			} else {
 				incrementGrog(10);
+				await addToLog(`Recovered 10 Grog`);
 			}
 			let proceed = await getChoice('Should the team attempt to approach the coral-surrounded island?', [
 				{ value: true, text: 'Yes, Booty awaits.' },
 				{ value: false, text: 'No, the coral could damage the ship.' },
 			]);
-			if(!proceed) {
+			if(proceed) {
 				result = roll();
 				if(result < 5) {
 					incrementBooty(-roll()-roll());
@@ -450,17 +452,18 @@ const islandExplorationTable = [
 	},
 	{
 		name: 'Dread Lair',
-		description: 'A narrow cave has the distinct lure of a Booty-Hoard. Explorers may enter one at a time, rolling. They may not return, but if they do they will bring back any explorers that previously entered, each carrying 10 Booty.',
+		description: 'A narrow cave has the distinct lure of a Booty-Hoard. Explorers may enter one at a time. They might not return, but if they do they will bring back any explorers that previously entered, each carrying 10 Booty.',
 		continueText: 'Into the cave',
 		handler: async (explorers) => {
 			explorers = filterEventTargets(explorers);
 			let inCave = [];
 			let waiting = [...explorers];
 			do {
-				var next = await getChoice('Which pirate should enter the cave next?', pirateOptions(waiting), 0, 1);
-				waiting = waiting.filter(p => p != nextPirate);
+				let next = await getChoice('Which pirate should enter the cave next?', pirateOptions(waiting), 0, 1);
+				var nextPirate = null;
 				if(next.length) {
-					let nextPirate = next[0];
+					nextPirate = next[0];
+					waiting = waiting.filter(p => p != nextPirate);
 					inCave.push(nextPirate);
 					if(roll(nextPirate) < 5) {
 						await addToLog(`${getPirateName(nextPirate)} did not return from the cave`);
@@ -472,6 +475,7 @@ const islandExplorationTable = [
 					}
 				}
 			} while(nextPirate && waiting.length);
+			inCave.forEach(p => kill(p, 'never came back from the cave', true));
 		}
 	},
 	{

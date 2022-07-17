@@ -138,6 +138,8 @@ async function kill(pirate, cause='left the crew', literal = false) {
 		return false;
 	}
 	pirate.alive = !literal;
+	pirate.causeOfDeath = cause;
+	pirate.timeOfDeath = Date.now();
 	crew = crew.filter(p => p != pirate);
 	await addToLog(`${name} ${cause}`);
 	if(crew.length == 0) {
@@ -327,7 +329,6 @@ async function rollPirate(withSkills=true) {
 	let hairColor = hairColors[hairColors.length-1];
 	if(randomInt(10) < 9) {
 		let hairIndexMax = Math.ceil((1 - (skinIndex / skinColors.length)) * (hairColors.length  - 1));
-		console.log(skinIndex, hairIndexMax);
 		hairColor = hairColors[randomInt(hairIndexMax)];
 	}
 	let clothingColors = ['beige', 'slategrey', 'cadetblue', 'rosybrown', 'mediumpurple', 'salmon', 'darkcyan', 'darkolivegreen', 'dodgerblue', 'cornflowerblue', 'darkseagreen', 'tomato'];
@@ -341,6 +342,8 @@ async function rollPirate(withSkills=true) {
 		explorer: null,
 		captain: false,
 		alive: true,
+		causeOfDeath: 'is not yet dead',
+		timeOfDeath: null,
 		attributes: [],
 		rivals: new Set(),
 		weeklyFlags: new Set(),
@@ -473,14 +476,10 @@ async function rollOnCaptainsMadnessTable() {
 }
 
 async function doWeek() {
-	saveable = true;
-	updateSaveable();
 	await addToLog(`New week started`, 1500);
 	if(autoSave) {
-		save();
+		localStorage.setItem('saved-game', serializeGameState());
 	}
-	saveable = false;
-	updateSaveable();
 	if(shipPermanentFlags.has('becalmed')) {
 		if(roll() > 3) {
 			shipPermanentFlags.delete('becalmed');
@@ -1011,12 +1010,6 @@ function loadGameState(saved) {
 	updateCrewList();
 }
 
-function save() {
-	if(saveable) {
-		localStorage.setItem('saved-game', serializeGameState());
-	}
-}
-
 function load() {
 	let saved = localStorage.getItem('saved-game');
 	if(saved) {
@@ -1041,7 +1034,6 @@ function resetGlobals() {
 	shipPermanentFlags = new Set();
 	autoPlay = true;
 	paused = false;
-	saveable = false;
 	autoSave = false;
 	updateTopBar();
 	clearLog();
