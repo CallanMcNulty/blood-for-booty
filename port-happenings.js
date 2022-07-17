@@ -70,7 +70,7 @@ const portHappeningTable = [
 			let totalStolen = 0;
 			for(let p of joined) {
 				if(crew.includes(p)) {
-					totalStolen += roll() * hasAttribute(p, skill.stealin);
+					totalStolen += roll() * (hasAttribute(p, skill.stealin) ? 2 : 1);
 				}
 			}
 			incrementBooty(totalStolen);
