@@ -1,3 +1,15 @@
+const DEBUG_MODE = false;
+async function chooseManuallyFromTable(msg, table) {
+	return table[await getChoice(msg, table.map((item, i) => ({ value:i, text:item.name })))];
+}
+async function chooseDieRollManually(msg, successFunc) {
+	let opts = [];
+	for(let i=1; i<=6; i++) {
+		opts.push({ value:i, text:`${i}${successFunc ? ` - ${['A','B','C','D','E'][successFunc(i)]}`:''}` });
+	}
+	return await getChoice(msg, opts);
+}
+
 function randomInt(limit) {
 	return Math.floor(Math.random()*limit);
 }
@@ -10,7 +22,7 @@ function roll(pirate=null) {
 		} else if(pirate.permanentFlags.has('blessed')) {
 			if(result == 1) {
 				pirate.permanentFlags.has('blessed');
-				addToLog(`${getPirateName(pirate)} lost their luck`);
+				addToLog(`${getPirateName(pirate)} lost ${getPronouns(pirate).poss} luck`);
 			} else {
 				result = 6;
 			}
@@ -66,6 +78,18 @@ function getPirateName(pirate) {
 	return names.join(' ');
 }
 
+function getPronouns(pirate, cap=false) {
+	let pronouns = pirate.female ? { nom:'she', acc:'her', poss:'her' } : { nom:'he', acc:'him', poss:'his' };
+	if(cap) {
+		for(let k of Object.keys(pronouns)) {
+			let arr = pronouns[k].split('');
+			arr[0] = arr[0].toUpperCase();
+			pronouns[k] = arr.join('');
+		}
+	}
+	return pronouns;
+}
+
 function incrementGrog(value) {
 	let remainingGrog = grog + value;
 	grog = Math.max(remainingGrog, 0);
@@ -74,9 +98,13 @@ function incrementGrog(value) {
 	return remainingGrog;
 }
 
-function incrementBooty(value) {
-	if(value > 0 && filterByAttr(crew, legend.plunderer).length) {
-		value += roll();
+function incrementBooty(value, potentialPlunderers) {
+	let plunderers = filterByAttr(potentialPlunderers ?? crew, legend.plunderer);
+	if(value > 0 && plunderers.length) {
+		let extra = roll();
+		value += extra;
+		let plunderer = randomResult(plunderers);
+		addToLog(`${getPirateName(plunderer)} plundered an extra ${extra} Booty`);
 	}
 	if(value <= -50 && shipPermanentFlags.has('devils_fist')) {
 		shipPermanentFlags.delete('devils_fist');
@@ -87,7 +115,7 @@ function incrementBooty(value) {
 	booty = Math.max(remainingBooty, 0);
 	updateTopBar();
 	updatePort();
-	return remainingBooty;
+	return value;
 }
 
 function incrementStashedBooty(value) {
@@ -188,9 +216,6 @@ function skillValue(pirateGroup, usedSkill) {
 	return filterByAttr(pirateGroup, usedSkill).length;
 }
 
-function validateAttribute(pirate, attr) {
-}
-
 async function addAttribute(pirate, attr) {
 	const addingSkill = attributeIsSkill(attr);
 	const addingFlaw = attributeIsFlaw(attr);
@@ -204,7 +229,7 @@ async function addAttribute(pirate, attr) {
 	// add it
 	pirate.attributes.push(attr);
 	updateCrewList();
-	await addToLog(`${getPirateName(pirate)} gained ${attr.name}`);
+	await addToLog(`${getPirateName(pirate)} gained the "${attr.name}" ${addingSkill ? 'Skill' : addingFlaw ? 'Flaw' : 'Feature'}`);
 	// check for legendary pirate status
 	if(addingSkill) {
 		let skills = pirate.attributes.filter(a => attributeIsSkill(a));
@@ -213,7 +238,7 @@ async function addAttribute(pirate, attr) {
 			if(!pirates.some(p => hasAttribute(p, earnedLegend) && p.alive)) {
 				pirate.attributes.push(earnedLegend);
 				updateCrewList();
-				await addToLog(`${getPirateName(pirate)} became a legendary pirate`);
+				await addToLog(`${getPirateName(pirate)} became a Legendary Pirate`);
 			}
 		}
 	}
@@ -224,7 +249,13 @@ async function removeAttribute(pirate, attr) {
 	let idx = pirate.attributes.indexOf(attr);
 	if(idx > -1) {
 		pirate.attributes.splice(idx, 1);
-		await addToLog(`${getPirateName(pirate)} lost attribute ${attr.name}`);
+		let type = 'Feature';
+		if(attributeIsFlaw(attr)) {
+			type = 'Flaw';
+		} else if(attributeIsSkill(attr)) {
+			type = 'Skill';
+		}
+		await addToLog(`${getPirateName(pirate)} lost ${attr.name} ${type}`);
 		await ensureUniqueness(pirate);
 	}
 	updateCrewList();
@@ -236,7 +267,7 @@ async function ensureUniqueness(pirate) {
 			pirate.attributes.every(a => hasAttribute(other, a))
 		;
 	})) {
-		await addAttribute(pirate, randomResult(featureTable));
+		await addAttribute(pirate, randomFeature(pirate));
 	}
 	return 0;
 }
@@ -288,6 +319,11 @@ async function rollSkill(pirate, alreadyRolled = null) {
 	}
 }
 
+function randomFeature(pirate) {
+	featureTable[0] = pirate.female ? feature.earrings : feature.beard;
+	return randomResult(featureTable);
+}
+
 async function rollFlaw(pirate) {
 	let result = roll();
 	let chosenFlaw;
@@ -308,17 +344,18 @@ async function rollFlaw(pirate) {
 			chosenFlaw = flaw.scrapper;
 			break;
 		case 6:
-			chosenFlaw = randomResult(featureTable);
+			chosenFlaw = randomFeature(pirate);
 			break;
 	}
 	await addAttribute(pirate, chosenFlaw);
 	return chosenFlaw;
 }
 
-async function rollPirate(withSkills=true) {
+async function rollPirate(withSkills=true, defaultFemale=null) {
+	let female = defaultFemale === null ? Math.random() < .15 : defaultFemale;
 	// name
 	do {
-		var name = randomResult(nameList);
+		var name = randomResult(female ? femaleNameList : maleNameList);
 	} while(pirates.some(p => p.name == name));
 	// colors
 	let skinColors = ['lemonchiffon', 'cornsilk', 'blanchedalmond', 'bisque', 'peachpuff', 'navajowhite', 'wheat', 'burlywood', 'sandybrown', 'darksalmon', 'peru', 'chocolate', 'sienna', 'saddlebrown'];
@@ -353,10 +390,11 @@ async function rollPirate(withSkills=true) {
 		appellation: null,
 		hair: { parts:[] },
 		colors: [],
+		female: female,
 		lastMoved: 0,
 	};
 	newPirate.colors = [skinColor, hairColor, shirtColor, pantsColor];
-	newPirate.hair = randomResult(hairstyles);
+	newPirate.hair = randomResult(newPirate.female ? femaleHairstyles : maleHairstyles);
 	// mechanical stuff
 	if(
 		crew.some(pirate => pirate.permanentFlags.has('hook_club')) &&
@@ -397,7 +435,7 @@ function cannotWork(pirate, workers) {
 	if(pirate.weeklyFlags.has('sick') && filterByAttr(workers, legend.terrible).length == 0) {
 		return 'Too sick to work';
 	}
-	let doesNothingResult = doesNotDoAnything(pirate)
+	let doesNothingResult = doesNotDoAnything(pirate);
 	if(doesNothingResult) {
 		return doesNothingResult;
 	}
@@ -431,19 +469,25 @@ function filterWorkers(workers) {
 	return workers.filter(w => !cannotWork(w, workers));
 }
 
-function filterEventTargets(pirateGroup) {
-	return pirateGroup.filter(pirate => {
+async function filterNonScared(pirateGroup) {
+	let filtered = [];
+	for(let pirate of pirateGroup) {
 		let scaredy = hasAttribute(pirate, flaw.scaredy) || (shipVoyageFlags.has('haunted') && !hasAttribute(pirate, skill.swaggerin));
 		if(scaredy && roll(pirate) < 4) {
-			addToLog(`${getPirateName(pirate)} got scared and ran away`);
-			return false;
+			await addToLog(`${getPirateName(pirate)} got scared and ran away`);
+			continue;
 		}
-		return true;
-	});
+		filtered.push(pirate);
+	}
+	return filtered;
 }
 
-function filterEventActors(pirateGroup) {
+function filterAvailable(pirateGroup) {
 	return pirateGroup.filter(pirate => !doesNotDoAnything(pirate));
+}
+
+async function filterDangerousEventActors(pirateGroup) {
+	return await filterNonScared(filterAvailable(pirateGroup));
 }
 
 function filterExplorers() {
@@ -465,7 +509,7 @@ async function rollOnSobrietyTable(soberPirate) {
 		event.description = event.description.replace('The pirate', getPirateName(soberPirate));
 		await showEvent(event, 'Sober Pirate', soberPirate);
 	} else {
-		await addToLog(`${getPirateName(soberPirate)} just about manages to function despite the lack of Grog.`);
+		await addToLog(`${getPirateName(soberPirate)} just about managed to function despite the lack of Grog.`);
 	}
 }
 
@@ -496,16 +540,16 @@ async function doWeek() {
 	if(crewAway.length) {
 		let planResult = roll();
 		if(planResult < 3) {
-			await addToLog('The ship found the smashed up remains of the conspirators’ rowboat')
+			await addToLog('The ship found the smashed up remains of the conspirators’ rowboat');
 			for(let deadPirate of crewAway) {
 				await kill(deadPirate, 'died in a rowboat wreck', true);
 			}
 		} else {
 			if(planResult > 4) {
-				await addToLog('Conspirators returned with 10 Booty each')
-				incrementBooty(crewAway.length*10);
+				await addToLog('Conspirators returned with 10 Booty each');
+				incrementBooty(crewAway.length*10, crewAway);
 			} else {
-				await addToLog('Conspirators returned with some worthless driftwood and get a good beating from the Captain')
+				await addToLog('Conspirators returned with some worthless driftwood and get a good beating from the Captain');
 			}
 			for(let pirate of crewAway) {
 				if(pirate.alive) {
@@ -564,18 +608,28 @@ async function doWeek() {
 			]);
 			await addToLog(`We are on course`);
 		} else {
-			headingToIsland = roll() > 3;
+			let helmRoll = roll();
+			if(DEBUG_MODE) {
+				helmRoll = await chooseDieRollManually('Helm roll', n => n > 3 ? 0 : 1);
+			}
+			headingToIsland = helmRoll > 3;
 			await addToLog(`Captain cannot steer the ship. Our heading is now ${headingToIsland ? 'island' : 'port'}`);
 		}
 	}
 	// deck
 	let deckhands = filterWorkers(team.deck);
 	let result = roll();
+	if(DEBUG_MODE) {
+		result = await chooseDieRollManually('Deck job roll', n => (n == 1 || n+deckhands.length) < 6 ? 1 : 0);
+	}
 	if(result > 1) {
 		result += deckhands.length;
 	}
 	if(result < 6) {
 		let event = randomResult(crewEventTable);
+		if(DEBUG_MODE) {
+			event = await chooseManuallyFromTable('Choose Crew Event', crewEventTable);
+		}
 		await showEvent(event, 'Crew Event');
 	} else {
 		await addToLog(`Decks running smoothly`);
@@ -583,6 +637,9 @@ async function doWeek() {
 	// sails
 	let sailors = filterWorkers(team.sails);
 	result = roll();
+	if(DEBUG_MODE) {
+		result = await chooseDieRollManually('Sails job roll', n => (n == 1 || n+sailors.length < 6) ? 1 : 0);
+	}
 	if(result > 1) {
 		result += sailors.length;
 	}
@@ -605,6 +662,9 @@ async function doWeek() {
 	} else {
 		// still at sea
 		let event = randomResult(seaEncounterTable);
+		if(DEBUG_MODE) {
+			event = await chooseManuallyFromTable('Choose Sea Encounter', seaEncounterTable);
+		}
 		await showEvent(event, 'Sea Encounter');
 		if(shipWeeklyFlags.has('early_arrival')) {
 			destinationReached = true;
@@ -613,7 +673,7 @@ async function doWeek() {
 	// handle arrival at destination
 	if(destinationReached && getCaptain().permanentFlags.has('whale_obsession')) {
 		await addToLog('White Whale spotted!');
-		let whalers = filterEventActors(filterEventTargets(crew));
+		let whalers = await filterDangerousEventActors(crew);
 		let whaleResult = roll() + skillValue(whalers, skill.shootin);
 		if(whaleResult < 3) {
 			await killRandomPirates(whalers, 'was eaten by a whale', true);
@@ -623,20 +683,20 @@ async function doWeek() {
 			await addToLog('The Whale escaped');
 		} else {
 			let whaleBoneBooty = roll()+roll();
-			incrementBooty(whaleBoneBooty);
+			whaleBoneBooty = incrementBooty(whaleBoneBooty, whalers);
 			getCaptain().permanentFlags.delete('whale_obsession');
-			await addToLog(`The Whale is caught, much to the relief of the captain, and its bones are worth ${whaleBoneBooty} Booty`);
+			await addToLog(`The Whale is caught, much to the relief of the Captain, and its bones are worth ${whaleBoneBooty} Booty`);
 		}
 	} else if(destinationReached) {
 		await addToLog(`Land ho!`);
 		if(shipVoyageFlags.has('bad_compass')) {
 			headingToIsland = roll() > 3;
-			await addToLog(`Indecisive compass led us to this ${headingToIsland ? 'island' : 'port'}`);
+			await addToLog(`Indecisive compass led us to this ${headingToIsland ? 'Island' : 'Port'}`);
 			shipVoyageFlags.delete('bad_compass');
 		}
 		if(shipVoyageFlags.has('curse')) {
 			if(roll() < 3) {
-				await addToLog(`All booty disappeared! We shouldn't have messed with that cursed ship!`);
+				await addToLog(`All Booty disappeared! We shouldn’t have messed with that cursed ship!`);
 				incrementBooty(-booty);
 			}
 			shipVoyageFlags.delete('curse');
@@ -652,9 +712,9 @@ async function doWeek() {
 			}
 			do {
 				shipWeeklyFlags.delete('turtle_transport');
-				let options = filterEventActors(crew).filter(p => !p.permanentFlags.has('caver')).map(w => pirateToOption(w, w.explorer));
+				let options = filterAvailable(crew).filter(p => !p.permanentFlags.has('caver')).map(w => pirateToOption(w, w.explorer));
 				let chosenExplorers = await getChoice(
-					'We’ve reached an island. Who should be on the exploration team?', options, 1, options.length
+					'We’ve reached an Island. Who should be on the exploration team?', options, 1, options.length
 				);
 				if(options.length == 1) {
 					chosenExplorers = [ chosenExplorers ];
@@ -663,6 +723,9 @@ async function doWeek() {
 					pirate.explorer = chosenExplorers.includes(pirate);
 				}
 				let event = randomResult(islandExplorationTable);
+				if(DEBUG_MODE) {
+					event = await chooseManuallyFromTable('Choose Island', islandExplorationTable);
+				}
 				if(shipPermanentFlags.has('treasure_map')) {
 					shipPermanentFlags.delete('treasure_map');
 					let eventIndex = islandExplorationTable.indexOf(event);
@@ -687,7 +750,7 @@ async function doWeek() {
 				await showEvent(event, 'Island Exploration', explorers);
 				let fated = explorers.find(p => p.permanentFlags.has('fated'));
 				if(fated) {
-					let reset = await getChoice(`Should ${getPirateName(fated)} use their power to reset time and retry the island?`, [
+					let reset = await getChoice(`Should ${getPirateName(fated)} use ${getPronouns(fated).poss} power to reset time and retry the Island?`, [
 						{ value: true, text: 'Yes (the new result will be final)' },
 						{ value: false, text: 'No' }
 					]);
@@ -699,8 +762,8 @@ async function doWeek() {
 				if(shipWeeklyFlags.has('treasure_hunter_iou')) {
 					let bootyDiff = booty - savedState.booty;
 					if(bootyDiff > 0) {
-						let repaid = -Math.floor(bootyDiff / 2);
-						incrementBooty(repaid);
+						let repaid = Math.floor(bootyDiff / 2);
+						incrementBooty(-repaid);
 						await addToLog(`Treasure hunters claimed their share of ${repaid} Booty`);
 					}
 				}
@@ -739,11 +802,11 @@ async function doWeek() {
 			// sell goods
 			if(shipVoyageFlags.has('carrying_high_value_goods')) {
 				if(roll() < 4) {
-					incrementBooty(1);
-					await addToLog('The goods were not in demand after all and were only sold for 1 Booty');
+					let earnings = incrementBooty(1);
+					await addToLog(`The goods were not in demand after all and were only sold for ${earnings} Booty`);
 				} else {
-					incrementBooty(30);
-					await addToLog('The deal worked and the goods were sold for 30 Booty');
+					let earnings = incrementBooty(30);
+					await addToLog(`The deal worked and the goods were sold for ${earnings} Booty`);
 				}
 			}
 			// deliver messenger
@@ -777,8 +840,11 @@ async function doWeek() {
 			crew.forEach(pirate => pirate.voyageFlags.clear());
 			// happening
 			let happening = randomResult(portHappeningTable);
+			if(DEBUG_MODE) {
+				happening = await chooseManuallyFromTable('Choose Port Happening', portHappeningTable);
+			}
 			if(eventReRollable) {
-				let reroll = await getChoice(`${happening.name} is happening at this port. Should we let our dolphin guides direct us elsewhere?`, [
+				let reroll = await getChoice(`${happening.name} is happening at this Port. Should we let our dolphin guides direct us elsewhere?`, [
 					{ value: true, text: 'Yes' },
 					{ value: false, text: 'No, this port is fine' },
 				]);
@@ -799,8 +865,8 @@ async function doWeek() {
 						backstabber.voyageFlags.add('in_jail');
 						await kill(backstabber, 'was thrown in jail', false);
 					} else {
-						await addToLog(`${getPirateName(backstabber)} acquired ${result} booty through armed robbery`);
-						incrementBooty(result);
+						result = incrementBooty(result);
+						await addToLog(`${getPirateName(backstabber)} acquired ${result} Booty through armed robbery`);
 					}
 				}
 				// handle bastard
@@ -821,7 +887,7 @@ async function doWeek() {
 	}
 	// calculate grog consumption
 	if(!inPort) {
-		await addToLog(`The crew were given their weekly grog`);
+		await addToLog(`The crew were given their weekly Grog`);
 		let grogDrinkers = crew.filter(pirate => !pirate.voyageFlags.has('boxed'));
 		let consumedGrog = grogDrinkers.length;
 		let doubleConsumption = shipWeeklyFlags.has('heatwave');
@@ -840,7 +906,7 @@ async function doWeek() {
 					break;
 				}
 			}
-			await addToLog(`${getPirateName(swigger)} drank ${consumedGrog - previousConsumption} extra grog`);
+			await addToLog(`${getPirateName(swigger)} drank ${consumedGrog - previousConsumption} extra Grog`);
 		}
 		if(consumedGrog < grog) {
 			consumedGrog += grogDrinkers.filter(pirate => pirate.weeklyFlags.has('deserves_extra_grog')).length;
@@ -849,7 +915,7 @@ async function doWeek() {
 		if(remainingGrog < 0) {
 			let soberCount = Math.ceil(Math.abs(remainingGrog / (doubleConsumption ? 2 : 1)));
 			if(soberCount) {
-				await addToLog(`${soberCount} pirates did not get enough grog`);
+				await addToLog(`${soberCount} pirates did not get enough Grog`);
 			}
 			for(let i=0; i<soberCount; i++) {
 				let soberPirate = randomResult(grogDrinkers, soberPirates);

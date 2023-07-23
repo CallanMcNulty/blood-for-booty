@@ -4,23 +4,21 @@ const seaEncounterTable = [
 		description: 'A squid tries to drag you down to the abyss.',
 		continueText: 'Fight it',
 		handler: async () => {
-			let availableCrew = filterEventTargets(crew);
-			let fighters = filterEventActors(availableCrew);
-			while(availableCrew.length) {
+			let fighters = await filterDangerousEventActors(crew);
+			while(crew.length) {
 				let result = roll() + skillValue(fighters, skill.swashbucklin);
 				if(result < 4) {
-					await kill(randomResult(availableCrew), 'was dragged into the icy depths by a giant squid', true);
-					availableCrew = filterEventTargets(crew);
+					await kill(randomResult(crew), 'was dragged into the icy depths by a giant squid', true);
 				} else {
 					if(result > 6) {
 						incrementBooty(10);
-						return { description:'The squid is killed and you manage to salvage valuable trophies worth 10 Booty.' };
+						return { description:'The squid is killed and we manage to salvage valuable trophies worth 10 Booty.' };
 					} else {
 						return { continueText:'Sail away', description:'The squid is defeated.' };
 					}
-					break;
 				}
 			}
+			return { continueText:'Oh no!', description:'The squid kills every member of the crew.' };
 		}
 	},
 	{
@@ -42,9 +40,9 @@ const seaEncounterTable = [
 					break;
 				case 2:
 					let deathCount = roll();
-					let availableCrew = filterEventTargets(crew);
+					let availableCrew = await filterNonScared(crew);
 					await killRandomPirates(availableCrew, 'died when the ship struck an iceberg', deathCount);
-					break;
+					return { description:`The crash claims the lives of ${deathCount} pirate(s).` };
 			}
 		}
 	},
@@ -59,8 +57,7 @@ const seaEncounterTable = [
 		description: 'The Navy have got you in an ambush.',
 		continueText: 'Fighting retreat',
 		handler: async () => {
-			let availableCrew = filterEventTargets(crew);
-			let fighters = filterEventActors(availableCrew);
+			let fighters = await filterNonScared(crew);
 			let result = roll() + skillValue(fighters, skill.shootin);
 			if(result < 5) {
 				await addToLog('The Navy pounded the ship to bits');
@@ -70,7 +67,7 @@ const seaEncounterTable = [
 				]);
 				if(loseCrew) {
 					for(let i=0; i<2; i++) {
-						let lost = randomResult(availableCrew);
+						let lost = randomResult(crew);
 						if(lost) {
 							await kill(lost, 'was killed fighting the Navy', true);
 						}
@@ -92,13 +89,14 @@ const seaEncounterTable = [
 		description: 'Some fellow pirates are trying to beat you at your own game.',
 		continueText: 'Show them some real pirating',
 		handler: async () => {
-			let result = roll() + skillValue(filterEventActors(crew), skill.shootin);
+			let availableCrew = filterAvailable(crew);
+			let result = roll() + skillValue(availableCrew, skill.shootin);
 			if(result < 3) {
 				incrementBooty(-10);
 				return { continueText:'Drive them off', description:'The other pirates manage to board the ship and steal 10 Booty.' };
 			} else if(result > 4) {
 				let gainedBooty = result * 2;
-				incrementBooty(gainedBooty);
+				incrementBooty(gainedBooty, availableCrew);
 				return { continueText:'Jeer at them while sailing away with their stuff', description:`Our crew raided their ships for ${gainedBooty} Booty.` };
 			}
 			return { description:'The crew just manage to fight the other pirates off.' };
@@ -112,8 +110,9 @@ const seaEncounterTable = [
 			let rolls = [roll(), roll(), roll()];
 			if(rolls[0] == rolls[1] && rolls[2] == rolls[1]) {
 				for(let pirate of crew) {
-					await kill(pirate, 'vanished in the triangle of doom', false);
+					await kill(pirate, 'vanished in the Triangle of Doom', false);
 				}
+				return { continueText:'Oh no!', description:'The ship vanishes and is never seen again.' };
 			}
 			return { continueText:'Thank God for that', description:'The ship passes through the triangle safely.' };
 		}
@@ -138,7 +137,7 @@ const seaEncounterTable = [
 		description: 'Some islanders have sailed up to the ship in their canoes offering to trade.',
 		continueText: 'See what they have',
 		handler: async () => {
-			let availableCrew = filterEventActors(crew);
+			let availableCrew = filterAvailable(crew);
 			let options = [ { value:0, text:'Raid them for Booty (they will fight back)' } ];
 			let grogSellPrice = 1;
 			if(skillValue(availableCrew, skill.stealin) > 0) {
@@ -148,15 +147,15 @@ const seaEncounterTable = [
 			let action = await getChoice('How should we respond to their offer?', options);
 			switch(action) {
 				case 0:
-					availableCrew = filterEventTargets(availableCrew);
+					availableCrew = await filterNonScared(availableCrew);
 					let killedCount = roll() - skillValue(availableCrew, skill.swashbucklin);
 					await killRandomPirates(availableCrew, 'was shot by poisoned darts', killedCount);
-					incrementBooty(roll()+roll());
-					break;
+					let gained = incrementBooty(roll()+roll(), availableCrew);
+					return { description:`The crew plunder ${gained} Booty, and the islanders’ poison darts claim the lives of ${killedCount} pirate(s).` };
 				case 1: {
 					let amount = await getNumberInput('Sell Grog', 'How much Grog should be sold?', 'Sell', 0, grog);
 					incrementGrog(-amount);
-					incrementBooty(amount * grogSellPrice);
+					incrementBooty(amount * grogSellPrice, availableCrew);
 					break;
 				}
 				case 2: {
@@ -181,7 +180,7 @@ const seaEncounterTable = [
 			for(let choice of choices) {
 				switch(choice) {
 					case 0:
-						let lost = randomResult(filterEventTargets(crew));
+						let lost = randomResult(await filterNonScared(crew));
 						if(lost) {
 							await kill(lost, 'got steamed', true);
 						}
@@ -218,7 +217,7 @@ const seaEncounterTable = [
 		description: 'The ship encounters a legendary hungry whirlpool that will only let the ship past if it’s fed!',
 		continueText: 'Feed it',
 		handler: async () => {
-			let availableCrew = filterEventTargets(crew);
+			let availableCrew = await filterNonScared(crew);
 			while(availableCrew.length) {
 				let choice =  await getChoice('What will be sacrificed to the whirlpool?', [
 					{ value: 0, text: 'A crew member' },
@@ -229,7 +228,7 @@ const seaEncounterTable = [
 					case 0:
 						let sacrifice = await getChoice('Which crew member will be sacrificed?', pirateOptions(availableCrew));
 						await kill(sacrifice, 'was sucked down a whirlpool', true);
-						availableCrew = filterEventTargets(crew);
+						availableCrew = availableCrew.filter(c => c.alive);
 						break;
 					case 1:
 						incrementGrog(-1);
@@ -243,7 +242,7 @@ const seaEncounterTable = [
 				}
 				await addToLog('The whirlpool demanded more and held the ship in place');
 			}
-			return { description:'The Whirlpool seems content and you can pass.' };
+			return { continueText:'Leave as fast as possible', description:'The whirlpool seems content and lets us pass.' };
 		}
 	},
 	{
@@ -283,20 +282,22 @@ const seaEncounterTable = [
 		description: 'The ship enters shark-infested waters.',
 		continueText: 'Throw them a snack',
 		handler: async () => {
-			let potentialSacrifices = filterEventTargets(crew);
+			let potentialSacrifices = await filterNonScared(crew);
 			if(potentialSacrifices.length == 0) {
 				return;
 			}
 			let sharkBait = await getChoice('Which pirate will be sacrificed to the sharks?', pirateOptions(potentialSacrifices));
+			let capProns = getPronouns(sharkBait, true);
 			let result = roll(sharkBait) + skillValue([sharkBait], skill.swashbucklin);
 			if(result < 3) {
-				await kill(sharkBait, 'was eaten sharks', true);
+				await kill(sharkBait, 'was eaten by sharks', true);
+				return { continueText:`${capProns.poss} sacrifice will not be forgotten`, description:`${getPirateName(sharkBait)} is thrown to the sharks, keeping them busy while the ship and the rest of the crew escape.` };
 			} else {
 				await addAttribute(sharkBait, skill.swaggerin);
 				if(result > 4) {
 					let haul = roll();
 					incrementBooty(haul);
-					return { continueText:'Get that pirate a hat', description:`${getPirateName(sharkBait)} kills some sharks and hauls up a trophy catch worth ${haul} Booty. They gain Swaggerin’ for being so impressive.` };
+					return { continueText:'Get that pirate a hat', description:`${getPirateName(sharkBait)} kills some sharks and hauls up a trophy catch worth ${haul} Booty. ${capProns.nom} gains Swaggerin’ for being so impressive.` };
 				}
 				return { continueText:'Get that pirate a hat', description:`${getPirateName(sharkBait)} fights off a shark and gains Swaggerin’ for being so impressive.` };
 			}
@@ -307,12 +308,12 @@ const seaEncounterTable = [
 		description: 'The crew have a run-in with some crocs.',
 		continueText: 'Try to run',
 		handler: async () => {
-			let availableCrew = filterEventTargets(crew);
+			let availableCrew = await filterNonScared(crew);
 			let scaredToDeath = filterByAttr(availableCrew, feature.crocophobia);
 			for(let pirate of scaredToDeath) {
 				await kill(pirate, 'died of fright', true);
 			}
-			let crocBait = await getChoice('Which pirate was dangling their leg in the water?', pirateOptions(availableCrew));
+			let crocBait = await getChoice(`${scaredToDeath.length ? `The sight of the crocs scares ${scaredToDeath.length} pirate(s) to death. ` : ''}Which pirate are the beasts after?`, pirateOptions(availableCrew));
 			if(crocBait) {
 				await addAttribute(crocBait, feature.crocophobia);
 				return { continueText:'Try to avoid crocs in the future', description:`${getPirateName(crocBait)} gains a fatal fear of crocodiles, and if the crew ever come across crocs again this pirate will keel over and die from fear.` };
@@ -333,7 +334,7 @@ const seaEncounterTable = [
 		description: 'The crew spots a group of mermaids on a rocky shore.',
 		continueText: 'Check them out',
 		handler: async () => {
-			let tempted = filterEventActors(filterEventTargets(crew)).filter(pirate => roll(pirate) < 3);
+			let tempted = (await filterDangerousEventActors(crew)).filter(pirate => roll(pirate) < 3);
 			for(let pirate of tempted) {
 				let result = roll(pirate) + skillValue([pirate], skill.swashbucklin);
 				if(result < 4) {
@@ -361,7 +362,7 @@ const seaEncounterTable = [
 			if(accept) {
 				let result = roll();
 				if(result < 3) {
-					let victim = randomResult(filterEventTargets(crew));
+					let victim = randomResult(await filterNonScared(crew));
 					if(victim) {
 						await kill(victim, 'was killed by a mad stranger', true);
 					}
@@ -377,13 +378,13 @@ const seaEncounterTable = [
 		description: 'A ghost ship! Honestly! Didn’t you just see that?',
 		continueText: 'Gawk like an idiot',
 		handler: async () => {
-			let availableCrew = filterEventTargets(crew);
+			let availableCrew = await filterNonScared(crew);
 			let result = roll();
 			if(result < 4) {
 				await killRandomPirates(availableCrew, 'was torn to pieces by ghosts', 3);
 				return { continueText:'Run and scream', description:'Some ghosts fly over from the other ship and start tearing crew members to pieces.' };
 			} else if(result > 6) {
-				incrementBooty(20);
+				incrementBooty(20, filterAvailable(crew));
 				return { continueText:'Take the pearl', description:'The ghost ship is brought down and the legendary pearl of Deadface worth 20 Booty floats in the wreckage!' };
 			}
 			return { continueText:'What an experience', description:'The ship vanishes into thin air.' };
@@ -402,7 +403,7 @@ const seaEncounterTable = [
 				await rollPirate();
 				await rollPirate();
 			} else {
-				incrementBooty(roll()+roll());
+				incrementBooty(roll()+roll(), filterAvailable(crew));
 				incrementGrog(roll());
 			}
 		}
@@ -422,7 +423,7 @@ const seaEncounterTable = [
 		description: 'The legendary colossus of the sea rises and tries to swallow the ship!',
 		continueText: 'To the guns!',
 		handler: async () => {
-			let result = roll() + skillValue(filterEventActors(crew), skill.shootin);
+			let result = roll() + skillValue(filterAvailable(crew), skill.shootin);
 			if(result < 6) {
 				headingToIsland = false;
 				shipWeeklyFlags.add('early_arrival');
@@ -448,7 +449,7 @@ const seaEncounterTable = [
 				shipWeeklyFlags.add('early_arrival');
 				shipWeeklyFlags.add('treasure_hunter_iou');
 			} else {
-				let availableCrew = filterEventActors(filterEventTargets(crew));
+				let availableCrew = await filterDangerousEventActors(crew);
 				let result = roll() + skillValue(availableCrew, skill.swashbucklin);
 				if(result < 4) {
 					let victim = randomResult(availableCrew);
@@ -458,9 +459,9 @@ const seaEncounterTable = [
 					return { continueText:'Search for our own treasure', description:'The crew are fought off and one pirate dies.' };
 				}
 				if(result > 6) {
-					incrementBooty(roll()+roll());
+					incrementBooty(roll()+roll(), availableCrew);
 				} else {
-					incrementBooty(roll());
+					incrementBooty(roll(), availableCrew);
 				}
 				return { continueText:'Bring back our spoils', description:'The crew boards them and steals their Booty.' };
 			}
@@ -471,12 +472,13 @@ const seaEncounterTable = [
 		description: 'Someone’s put a price on the Captain’s head and tries to take it!',
 		continueText: 'Defend the captain',
 		handler: async () => {
-			let result = roll() + skillValue(filterEventActors(crew), skill.swashbucklin);
+			let availableCrew = filterAvailable(crew);
+			let result = roll() + skillValue(availableCrew, skill.swashbucklin);
 			if(result < 4) {
 				await kill(getCaptain(), 'was caught by a bounty hunter', true);
 				return { continueText:'Carry on with a new captain', description:'The captain is killed.' };
 			} else if(result > 5) {
-				incrementBooty(roll());
+				incrementBooty(roll(), availableCrew);
 				return { continueText:'Nobody messes with our captain', description:'The attackers are fended off and the crew manage to salvage some Booty from them in the process.' };
 			}
 			return { continueText:'Nobody messes with our captain', description:'The attackers are fended off.' };
@@ -498,13 +500,14 @@ const seaEncounterTable = [
 					shipWeeklyFlags.add('early_arrival');
 				}
 			} else {
-				let result = roll() + skillValue(filterEventActors(crew), skill.swashbucklin);
+				let availableCrew = filterAvailable(crew);
+				let result = roll() + skillValue(availableCrew, skill.swashbucklin);
 				if(result > 6) {
-					incrementBooty(result * 2);
+					incrementBooty(result * 2, availableCrew);
 				} else if(result > 4) {
-					incrementBooty(roll()+roll());
+					incrementBooty(roll()+roll(), availableCrew);
 				} else if(result > 2) {
-					incrementBooty(roll());
+					return { continueText:'We’ll get the next time', description:'The explorers held onto their Booty, but the pirates got away unharmed.' };
 				}
 			}
 		}
@@ -514,8 +517,8 @@ const seaEncounterTable = [
 		description: 'These ships are helpless without their escort.',
 		continueText: 'Plunder them',
 		handler: async () => {
-			let availableCrew = filterEventTargets(crew);
-			let actors = filterEventActors(availableCrew);
+			let availableCrew = await filterNonScared(crew);
+			let actors = await filterDangerousEventActors(availableCrew);
 			let result = roll() + skillValue(actors, skill.shootin);
 			if(result < 5) {
 				let victim = randomResult(availableCrew);
@@ -525,7 +528,7 @@ const seaEncounterTable = [
 				return { continueText:'They were tougher than they looked', description:'The ship is fought off and a pirate dies.' };
 			} else {
 				let recovered = roll() + skillValue(actors, skill.stealin);
-				incrementBooty(recovered);
+				incrementBooty(recovered, availableCrew);
 				return { continueText:'Textbook pirating', description:`The escort is destroyed and ${recovered} Booty is recovered.` };
 			}
 		}
@@ -535,9 +538,9 @@ const seaEncounterTable = [
 		description: 'Wrecked ships abound in this part of the sea.',
 		continueText: 'Salvage what we can',
 		handler: async () => {
-			let availableCrew = filterEventActors(filterEventTargets(crew));
+			let availableCrew = await filterDangerousEventActors(crew);
 			let result = roll() + skillValue(availableCrew, skill.stealin);
-			incrementBooty(result);
+			incrementBooty(result, availableCrew);
 			if(result == 1) {
 				let victim = randomResult(availableCrew);
 				if(victim) {
@@ -545,6 +548,7 @@ const seaEncounterTable = [
 					return { description:`${result} Booty was salvaged. ${getPirateName(victim)} got too greedy and drowned.` };
 				}
 			}
+			return { description:`${result} Booty was salvaged.` };
 		}
 	},
 	{
@@ -567,17 +571,18 @@ const seaEncounterTable = [
 		description: 'The huge Navy flagship appears.',
 		continueText: 'We can’t take this one',
 		handler: async () => {
-			let availableCrew = filterEventTargets(crew);
+			let availableCrew = await filterNonScared(crew);
 			while(availableCrew.length) {
-				let result = roll() + skillValue(filterEventActors(availableCrew), skill.shootin);
+				let actors = filterAvailable(availableCrew);
+				let result = roll() + skillValue(actors, skill.shootin);
 				if(result < 4) {
 					await addToLog('The ship was pounded by cannons');
 					incrementBooty(-roll());
 					await kill(randomResult(availableCrew), 'was caught by cannon fire', true);
-					availableCrew = filterEventTargets(crew);
+					availableCrew = availableCrew.filter(c => c.alive);
 				} else {
 					if(result > 5) {
-						incrementBooty(roll()+roll());
+						incrementBooty(roll()+roll(), actors);
 						incrementGrog(roll()+roll());
 						return { continueText:'We will be legends among pirates', description:'Against the odds, our guns manage to sink the flagship! The crew salvage Booty and Grog.'}
 					}
@@ -591,7 +596,7 @@ const seaEncounterTable = [
 		description: 'We spot a completely helpless ship.',
 		continueText: 'Steal some Booty',
 		handler: async () => {
-			incrementBooty(roll()+roll());
+			incrementBooty(roll()+roll(), filterAvailable(availableCrew));
 			shipVoyageFlags.add('curse');
 			return { continueText:'Damn our greedy pirate ways!', description:'The Booty is cursed and may cause trouble.' };
 		}
@@ -608,21 +613,24 @@ const seaEncounterTable = [
 		name: 'Spice Vessel',
 		description: 'The crew spot a helpless ship filled with valuable cargo!',
 		continueText: 'What a score!',
-		handler: async () => incrementBooty((roll() + skillValue(filterEventActors(crew), skill.stealin))*5)
+		handler: async () => {
+			let availableCrew = filterAvailable(crew);
+			incrementBooty((roll() + skillValue(availableCrew, skill.stealin))*5, availableCrew);
+		}
 	},
 	{
 		name: 'Stirring Deep',
-		description: 'Shadows and shapes grasp at the ship from below. They speak in a deep voice, demanding the captain make a sacrifice.',
+		description: 'Shadows and shapes grasp at the ship from below. They speak in a deep voice, demanding the Captain make a sacrifice.',
 		continueText: 'Give them something',
 		handler: async () => {
 			let choice =  await getChoice('What should be handed over to the shadow creatures?', [
-				{ value: 0, text: 'All crew that can be found but one, apart from the captain' },
+				{ value: 0, text: 'All crew that can be found but one, apart from the Captain' },
 				{ value: 1, text: 'All booty and grog' },
 				{ value: 2, text: 'Nothing (they will destroy the ship)' },
 			]);
 			switch(choice) {
 				case 0:
-					let salvageable = filterEventTargets(crew).filter(pirate => !pirate.captain);
+					let salvageable = await filterNonScared(crew).filter(pirate => !pirate.captain);
 					let saved = null;
 					if(salvageable.length) {
 						saved = await getChoice('Which crew member should be saved?', pirateOptions(salvageable));

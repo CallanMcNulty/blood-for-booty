@@ -1,0 +1,7 @@
+- Better Devil's Fist support
+	- Allow spending without requiring excess Booty
+	- Allow crew to carry multiple
+	- Show number in graphic
+- Display work success chance
+- Explanation tutorial Text
+- Choice options more clearly clickable

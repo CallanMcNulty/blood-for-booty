@@ -23,12 +23,13 @@ const legend = {
 };
 
 const feature = {
-	noNose: { name: 'No Nose', description:'Question: If they have no nose, then how do they smell? Answer: Terrible.' },
+	noNose: { name: 'No Nose', description:'No nose? Then how do they smell? Terrible.' },
 	blind: { name: 'Blind', description:'When an eyepatch doesn’t cut it anymore.' },
 	parrot: { name: 'Parrot', description:'Better stay stocked up on crackers.' },
 	toothless: { name: 'Toothless', description:'No good dentists on a pirate ship.' },
 	eyepatch: { name: 'Eyepatch', description:'Classic.' },
 	beard: { name: 'Beard', description:'Be it black, red, or brown, a beard is the mark of a true pirate.' },
+	earrings: { name: 'Earrings', description:'Every stylish pirate sports a pair of golden hoops.' },
 	pegLeg: { name: 'Peg Leg', description:'Your leg’s off, but don’t worry—we put on a table leg instead!' },
 	hook: { name: 'Hook', description:'They’ve got us all hooked.' },
 	tattoos: { name: 'Tattoos', description:'All inked up.' },
@@ -81,12 +82,12 @@ const shipFlagText = {
 };
 
 const featureTable = [
+	feature.beard,
 	feature.noNose,
 	feature.blind,
 	feature.parrot,
 	feature.toothless,
 	feature.eyepatch,
-	feature.beard,
 	feature.pegLeg,
 	feature.hook,
 	feature.tattoos,
@@ -100,48 +101,51 @@ async function mutiny(pirate) {
 	}
 	if(pirate.captain) {
 		await kill(randomResult(crew, [pirate]), 'walked the plank', true);
-		return { continueText:'Acknowledge captain’s authority', description:`${getPirateName(pirate)} kills a crew member to show everyone who’s boos.` };
+		return { continueText:'Acknowledge Captain’s authority', description:`${getPirateName(pirate)} kills a crew member to show everyone who’s boos.` };
 	}
 	let result = roll() + skillValue([pirate], skill.swashbucklin);
 	if(result < 6) {
 		await kill(pirate, 'walked the plank', true);
-		return { description: `The captain defeats ${getPirateName(pirate)}, who is forced to walk the plank.`, continueText: 'Don’t cross the captain' };
+		return { description: `The Captain defeats ${getPirateName(pirate)}, who is forced to walk the plank.`, continueText: 'Don’t cross the Captain' };
 	} else {
 		let oldCaptain = getCaptain();
 		await assignCaptain(pirate);
 		await kill(oldCaptain, 'was killed in a mutiny', true);
-		return { continueText:'Hail to the new captain', description:`${getPirateName(pirate)} killed the old captain and took control of this ship.` };
+		return { continueText:'Hail to the new Captain', description:`${getPirateName(pirate)} kills the old Captain and takes control of the ship.` };
 	}
 }
 
 const soberPirateTable = [
 	{
 		name: 'Abandon Ship',
-		description: 'The pirate can take no more of this ship.',
+		description: 'A pirate can take no more of this ship.',
 		continue: 'Make a break for freedom',
 		handler: async (pirate) => {
 			if(doesNotDoAnything(pirate)) {
 				return { continueText:'Stick around after all', description:'The pirate tries to jump into the sea but is unable.' };
 			}
 			await kill(pirate, 'swam into the horizon', false);
+			return { continueText:'Wish them luck', description:`${getPirateName(pirate)} jumps into the sea and swims into the horizon.` };
 		}
 	},
 	{
 		name: 'Mutiny',
-		description: 'The pirate decides they could do a better job of running the ship.',
+		description: 'A pirate decides they could do a better job of running the ship.',
 		continue: 'Commence mutiny',
 		handler: mutiny
 	},
 	{
 		name: 'Go Berserk',
-		description: 'The pirate goes murderously mad.',
+		description: 'A pirate goes murderously mad.',
 		continueText: 'Blow up',
 		handler: async (pirate) => {
+			let victim = null;
 			if(crew.length > 1) {
-				let victim = randomResult(crew, [pirate]);
+				victim = randomResult(crew, [pirate]);
 				await kill(victim, `was killed by ${getPirateName(pirate)} in a berserk rage`, true);
 			}
 			await kill(pirate, 'died in a berserk rage', true);
+			return { continueText:'It’s always the quiet ones', description:`${getPirateName(pirate)} goes mad,${victim ? ` murders ${getPirateName(victim)},` : ''} and dies of shock.` };
 		}
 	},
 ];
@@ -149,34 +153,37 @@ const soberPirateTable = [
 const captainsMadnessTable = [
 	{
 		name: 'Traitor Hunt!',
-		description: 'The captain is becoming paranoid, searching for traitors to force off the ship.',
+		description: 'The Captain is becoming paranoid, searching for traitors to force off the ship.',
 		continueText: 'Commence hunt',
 		handler: async () => {
 			let cap = getCaptain();
-			if(doesNotDoAnything(cap)) {
-				return;
-			}
-			let availableCrew = filterEventTargets(crew);
-			for(let pirate of availableCrew) {
-				if(pirate == cap || !crew.includes(pirate)) {
-					continue;
+			if(!doesNotDoAnything(cap)) {
+				let availableCrew = await filterNonScared(crew);
+				let killCount = 0;
+				for(let pirate of availableCrew) {
+					if(pirate == cap || !crew.includes(pirate)) {
+						continue;
+					}
+					let result = roll(pirate);
+					if(result == 1) {
+						await kill(pirate, 'walked the plank', true);
+						killCount++;
+					}
 				}
-				let result = roll(pirate);
-				if(result == 1) {
-					await kill(pirate, 'walked the plank', true);
-				}
+				return { continueText:'Pray the witch-hunt ends', description:`The Captain executes ${killCount} "traitors".` };
 			}
+			return { description:'But no traitors are found.' };
 		}
 	},
 	{
 		name: 'Drink!',
-		description: 'The captain decides getting drunk is more entertaining than working.',
+		description: 'The Captain decides getting drunk is more entertaining than working.',
 		continueText: 'Bottoms up',
 		handler: async () => { incrementGrog(-roll()); }
 	},
 	{
 		name: 'Deterioration',
-		description: 'The captain’s physical and mental heath is waning.',
+		description: 'The Captain’s physical and mental heath is waning.',
 		continueText: 'Be strong',
 		handler: async () => {
 			let captain = getCaptain();
@@ -185,21 +192,22 @@ const captainsMadnessTable = [
 			if(startingAttributes.includes(rolledFlaw)) {
 				await kill(captain, 'died of scurvy', true);
 			}
+			return { continueText:'Give them a proper burial at sea', description:'The Captain succumbed to poor health.' };
 		}
 	},
 	{
 		name: 'Homesick',
-		description: 'The captain has had enough of the sea.',
+		description: 'The Captain has had enough of the sea.',
 		continueText: 'Set bearing for Port',
 		handler: async () => {
 			let cap = getCaptain();
 			if(doesNotDoAnything(cap)) {
-				return { continueText:'Keep original heading', description:'The captain is unable to change the heading.' };
+				return { continueText:'Keep original heading', description:'The Captain is unable to change the heading.' };
 			}
 			headingToIsland = false;
 			cap.voyageFlags.add('homesick');
 			cap.voyageFlags.add('no_heading_change');
-			return { continueText:'Continue to Port', description:'Now heading to Port. Upon arrival the captain will spend 2-12 Booty on luxuries before realising that life on land is expensive and returning to the crew.' };
+			return { continueText:'Continue to Port', description:'Now heading to Port. Upon arrival the Captain will spend 2-12 Booty on luxuries before realising that life on land is expensive and returning to the crew.' };
 		}
 	},
 	{
@@ -212,12 +220,12 @@ const captainsMadnessTable = [
 	},
 	{
 		name: 'Change of Heart',
-		description: 'The captain decides to change the ship’s bearing to the opposite of what it currently is, on a whim.',
+		description: 'The Captain decides to change the ship’s bearing to the opposite of what it currently is, on a whim.',
 		continueText: 'Change course',
 		handler: async () => {
 			let cap = getCaptain();
 			if(doesNotDoAnything(cap)) {
-				return { continueText:'Keep original heading', description:'The captain is unable to change the heading.' };
+				return { continueText:'Keep original heading', description:'The Captain is unable to change the heading.' };
 			}
 			headingToIsland = !headingToIsland;
 			cap.voyageFlags.add('no_heading_change');

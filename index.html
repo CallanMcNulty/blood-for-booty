@@ -59,7 +59,10 @@
 <div style="background-color:maroon; color:white; padding:1rem; font-size:1.2rem; cursor:default; display:flex;">
 	<span>
 		<span style="margin-right:1rem;"><i class="fas fa-beer"></i> <span id="grog">0</span></span>
-		<span style="margin-right:1rem;"><i class="fas fa-coins"></i> <span id="booty">0</span></span>
+		<span style="margin-right:1rem;">
+			<i class="fas fa-coins"></i> <span id="booty">0</span>
+			<span id="devils-fist-icon" style="display:none;">+ <i class="far fa-gem"></i></span>
+		</span>
 		<span id="stash" style="margin-right:1rem;"><i class="fas fa-piggy-bank"></i> <span id="stashed-booty">0</span></span>
 		<span style="margin-right:1rem;"><i class="far fa-compass"></i> <span id="heading">Island</span></span>
 	</span>
@@ -137,7 +140,8 @@
 			</div>
 			<div style="display:inline-flex; justify-content:center; height:0; flex-grow:1; margin-bottom:1rem;">
 				<div style="background-color:tan; padding:1rem; max-width:50%;">
-					<object id="pirate-portrait" type="image/svg+xml" data="pirate.svg" style="height:100%; width:100%; opacity:0;">pirate graphic</object>
+					<object id="pirate-man-portrait" type="image/svg+xml" data="pirate-man.svg" style="height:100%; width:100%; opacity:0; display:none;">pirate graphic</object>
+					<object id="pirate-lady-portrait" type="image/svg+xml" data="pirate-lady.svg" style="height:100%; width:100%; opacity:0; display:none;">pirate graphic</object>
 				</div>
 				<div style="padding:0 1rem; width:50%; font-size:1.5rem; display:flex; flex-direction:column;">
 					<div id="attribute-list" style="text-align:left; height:0; flex-grow:1; overflow:auto; padding:0 1rem; border:.1rem solid;"></div>
@@ -183,10 +187,8 @@
 	</div>
 </div>
 
-<script src="names.js"></script>
-<script src="hairstyles.js"></script>
+<script src="names-and-hairstyles.js"></script>
 <script src="gameplay.js"></script>
-<!-- TODO: audit all events to be sure that they log where appropriate and that a mid-event kill will not break anything -->
 <script src="misc-tables.js"></script>
 <script src="crew-events.js"></script>
 <script src="sea-encounters.js"></script>
@@ -208,6 +210,9 @@ function clear(el) {
 }
 
 function toggleAutoSave() {
+	if(autoSave === undefined) {
+		return;
+	}
 	autoSave = !autoSave;
 	let autoSaveIcon = document.getElementById('autosave');
 	autoSaveIcon.style.color = autoSave ? '#b00' : 'white';
@@ -380,7 +385,7 @@ function updateCrewList() {
 			// create new element if there aren't enough existing ones
 			element = inflate(`
 				<div style="position:relative; text-align:center; width:7rem;">
-					<object class="graphic" type="image/svg+xml" data="pirate.svg" style="display:inline-block; height:6rem; opacity:0;">pirate graphic</object>
+					<object class="graphic" type="image/svg+xml" data="${`pirate-${pirate.female ? 'lady' : 'man'}.svg`}" style="display:inline-block; height:6rem; opacity:0;">pirate graphic</object>
 					<div class="name">${nameText}</div>
 				</div>
 			`);
@@ -477,7 +482,16 @@ function updatePirateView(pirate) {
 		updateNameChanger(pirate, true);
 	}
 	// portrait
-	updatePirateEl(pirate, document.getElementById('pirate-portrait'));
+	let portrait = document.getElementById('pirate-man-portrait');
+	let hiddenPortrait = document.getElementById('pirate-lady-portrait');
+	if(pirate.female) {
+		let ladyPortrait = hiddenPortrait;
+		hiddenPortrait = portrait;
+		portrait = ladyPortrait;
+	}
+	portrait.style.display = 'block';
+	hiddenPortrait.style.display = 'none';
+	updatePirateEl(pirate, portrait);
 	document.getElementById('pirate-name').textContent = getPirateName(pirate);
 	// attribute list
 	let list = document.getElementById('attribute-list');
@@ -626,6 +640,7 @@ function updatePirateSvg(pirate, el) {
 		['single-tooth', feature.toothless],
 		['eyepatch', feature.eyepatch],
 		['beard', feature.beard],
+		['earrings', feature.beard],
 		['peg-leg', feature.pegLeg],
 		['hook', feature.hook],
 		['left-hook', feature.leftHook],
@@ -642,7 +657,10 @@ function updatePirateSvg(pirate, el) {
 		['rat', feature.rat],
 	];
 	for(let pair of elementIdAttributePairs) {
-		setSvgElVisibility(el.getElementById(pair[0]), hasAttribute(pirate, pair[1]));
+		let element = el.getElementById(pair[0]);
+		if(element) {
+			setSvgElVisibility(element, hasAttribute(pirate, pair[1]));
+		}
 	}
 	let hiddenElementIdAttributePairs = [
 		['hand', feature.hook],
@@ -668,9 +686,11 @@ function updatePirateSvg(pirate, el) {
 		topEl.style.fill = pirate.colors[2];
 	}
 	el.getElementById('pants').style.fill = pirate.colors[3];
+	let hairIds = pirate.female ? femaleHairIds : maleHairIds;
 	for(let hairId of hairIds) {
 		el.getElementById(hairId).style.fill = pirate.colors[1];
 	}
+	let hairParts = pirate.female ? femaleHairParts : maleHairParts;
 	for(let hairId of hairParts) {
 		let shown = pirate.hair.parts.includes(hairId) &&
 			!(hasAttribute(pirate, skill.swaggerin) && (hairId == 'hair-poof' || hairId == 'hair-curly-back'))
@@ -687,6 +707,7 @@ function updateTopBar() {
 	document.getElementById('booty').textContent = booty;
 	document.getElementById('stash').style.display = stashedBooty ? 'inline' : 'none';
 	document.getElementById('stashed-booty').textContent = stashedBooty;
+	document.getElementById('devils-fist-icon').style.display = shipPermanentFlags.has('devils_fist') ? 'inline' : 'none';
 	let cap = getCaptain();
 	document.getElementById('heading').textContent = (cap && cap.permanentFlags.has('whale_obsession')) ?
 		'White Whale' : (headingToIsland ? 'Island' : 'Port')
@@ -808,7 +829,7 @@ function updatePort() {
 		stashContainer.appendChild(select);
 		select = stashContainer.appendChild(prepareNumberSelect('stash-withdraw', 'Withdraw', value => {
 			incrementStashedBooty(-value);
-			incrementBooty(value);
+			incrementBooty(value, []);
 		}));
 		select.style.marginTop = '1rem';
 		stashContainer.appendChild(select);
