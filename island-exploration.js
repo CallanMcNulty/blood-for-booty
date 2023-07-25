@@ -591,4 +591,4 @@ const islandExplorationTable = [
 			incrementBooty(explorers.map(p => roll()).reduce((acc,curr) => acc+curr, 0), explorers);
 		}
 	},
-]
+];

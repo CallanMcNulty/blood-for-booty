@@ -514,9 +514,7 @@ async function rollOnSobrietyTable(soberPirate) {
 }
 
 async function rollOnCaptainsMadnessTable() {
-	let event = randomResult(captainsMadnessTable);
-	await addToLog(`Captain's madness event: ${event.name}`);
-	await event.handler();
+	await showEvent(randomResult(captainsMadnessTable), 'Captain’s Madness');
 }
 
 async function doWeek() {
@@ -1110,12 +1108,7 @@ function beginGame() {
 	(async () => {
 		await addToLog(`Generating starting crew`, 1500);
 		for(let i=0; i<8; i++) {
-			let newPirate = await rollPirate();
-			if(i < 5) {
-				newPirate.job = 'deck';
-			} else {
-				newPirate.job = 'sails';
-			}
+			await rollPirate();
 		}
 		await pickNewCaptain();
 

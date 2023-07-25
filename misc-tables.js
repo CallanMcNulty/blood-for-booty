@@ -62,7 +62,7 @@ const pirateFlagText = {
 
 const shipFlagText = {
 	bad_grog: { name:'Bad Grog', description:'Our stores of grog are bad and making the pirates sick.' },
-	rats: { name:'Rats', description:'This ship is infested with rats. They ay damage the supplies.' },
+	rats: { name:'Rats', description:'This ship is infested with rats. They may damage the supplies.' },
 	haunted: { name:'Haunted', description:'A ghost was sighted on the ship, and the crew are scared.' },
 	scurvy: { name:'Scurvy', description:'A lack of fresh fruit is making the crew sick.' },
 	bad_compass: { name:'Indecisive Compass', description:'Something’s not right with the compass.' },
@@ -170,7 +170,9 @@ const captainsMadnessTable = [
 						killCount++;
 					}
 				}
-				return { continueText:'Pray the witch-hunt ends', description:`The Captain executes ${killCount} "traitors".` };
+				if(killCount) {
+					return { continueText:'Pray the witch-hunt ends', description:`The Captain executes ${killCount} "traitors".` };
+				}
 			}
 			return { description:'But no traitors are found.' };
 		}
@@ -191,8 +193,8 @@ const captainsMadnessTable = [
 			let rolledFlaw = await rollFlaw(captain);
 			if(startingAttributes.includes(rolledFlaw)) {
 				await kill(captain, 'died of scurvy', true);
+				return { continueText:'Give them a proper burial at sea', description:'The Captain succumbed to poor health.' };
 			}
-			return { continueText:'Give them a proper burial at sea', description:'The Captain succumbed to poor health.' };
 		}
 	},
 	{

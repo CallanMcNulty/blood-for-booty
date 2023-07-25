@@ -406,7 +406,7 @@ const crewEventTable = [
 		name: 'Stowaway',
 		description: 'Someone else is on the ship.',
 		continueText: 'Ask them to join the crew',
-		handler: () => { rollPirate(); }
+		handler: async () => { await rollPirate() },
 	},
 	{
 		name: 'Ocean Madness',

@@ -1,7 +1,9 @@
 - Better Devil's Fist support
 	- Allow spending without requiring excess Booty
+	- Disallow depositing
 	- Allow crew to carry multiple
 	- Show number in graphic
-- Display work success chance
-- Explanation tutorial Text
-- Choice options more clearly clickable
+	- Allow overpayment w/ Devil's Fist
+- Explanation tutorial text (what does each job do?)
+- Investigate bug with legendary pirate status not being conferred after restart
+	- Additional symptom: After save and re-load, legend status was granted and captainship shifted to legendary pirate

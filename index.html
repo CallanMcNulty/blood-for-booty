@@ -73,7 +73,7 @@
 	</span>
 </div>
 <div id="page-body" style="height:0; flex-grow:1; display:flex; position:relative">
-	<div id="log-holder" style="padding-bottom:2rem; width:20rem; height:100%; background-color:tan;">
+	<div id="log-holder" style="padding-bottom:2rem; width:30rem; height:100%; background-color:tan;">
 		<div id="log" style="max-height:100%; padding:0 1rem; overflow:auto;"></div>
 	</div>
 	<div id="main" style="position:relative; height:100%; width:0; flex-grow:1; text-align:center; top:0;">
@@ -116,12 +116,16 @@
 		<div id="job-interface" style="display:none; height:100%; width:100%; justify-content:center; background-color:moccasin;">
 			<div style="display:flex; height:100%; width:100%; max-width:35rem; flex-direction:column; padding:2rem .5rem; font-size:1.5rem;">
 				<div>Assign Jobs</div>
+				<div id="assign-instructions" style="font-size:.85rem; opacity:.6; margin-bottom:.4rem;">
+					<span>Drag & drop to add pirate to work area.</span>
+					<span>Tap a pirate’s name to move them to a new job assignment.</span>
+				</div>
 				<div id="job-area-holder" style="
 					display:flex; justify-content:space-between;
-					height:0; flex-grow:1;
-					padding-bottom:1rem; font-size:1rem;
+					height:0; flex-grow:1; font-size:1rem;
 				"></div>
-				<button id="finished-assignment-button">Continue</button>
+				<div id="scrapper-warning" style="font-size:.85rem; opacity:.6;">* Scrappers may start fights which prevent pirates from working</div>
+				<button id="finished-assignment-button" style="margin-top:.6rem;">Continue</button>
 			</div>
 		</div>
 		<div id="pirate-view" style="position:absolute; top:0; height:100%; width:100%; display:none; flex-direction:column; background-color:moccasin; padding:1rem;">
@@ -138,12 +142,13 @@
 					<input id="location-input" type="text" placeholder="Location" />
 				</span>
 			</div>
-			<div style="display:inline-flex; justify-content:center; height:0; flex-grow:1; margin-bottom:1rem;">
-				<div style="background-color:tan; padding:1rem; max-width:50%;">
-					<object id="pirate-man-portrait" type="image/svg+xml" data="pirate-man.svg" style="height:100%; width:100%; opacity:0; display:none;">pirate graphic</object>
-					<object id="pirate-lady-portrait" type="image/svg+xml" data="pirate-lady.svg" style="height:100%; width:100%; opacity:0; display:none;">pirate graphic</object>
+			<div id="pirate-profile" style="display:inline-flex; justify-content:center; height:0; flex-grow:1; margin-bottom:1rem;">
+				<div style="background-color:tan; padding:1rem; flex-basis:40%;">
+					<object id="pirate-man-svg" type="image/svg+xml" data="pirate-man.svg" style="height:100%; margin:auto; max-width:100%; opacity:0; display:none;">pirate graphic</object>
+					<object id="pirate-lady-svg" type="image/svg+xml" data="pirate-lady.svg" style="height:100%; margin:auto; max-width:100%; opacity:0; display:none;">pirate graphic</object>
 				</div>
-				<div style="padding:0 1rem; width:50%; font-size:1.5rem; display:flex; flex-direction:column;">
+				<div style="width:1rem; height:1rem;"><!-- spacer --></div>
+				<div style="flex-basis:0; flex-grow:1; font-size:1.5rem; display:flex; flex-direction:column;">
 					<div id="attribute-list" style="text-align:left; height:0; flex-grow:1; overflow:auto; padding:0 1rem; border:.1rem solid;"></div>
 					<button id="pirate-view-done" style="margin-top:1rem;" onclick="updatePirateView(null)">Back</button>
 				</div>
@@ -171,7 +176,9 @@
 		</div>
 		<div id="splash-screen" style="font-size:2rem; height:100%; width:100%; background-color:moccasin; position:absolute; padding:4rem 1rem;">
 			<div style="font-size:4rem;">Blood for Booty</div>
-			<button style="margin:3rem;" onclick="newGame()">Start New Game</button>
+			<button style="width:25rem; max-width:100%; margin:1rem 0" onclick="newGame()">Start New Game</button>
+			<br/>
+			<button id="load-button" style="width:25rem; max-width:100%; display:none;" onclick="load()">Load Game</button>
 		</div>
 	</div>
 </div>
@@ -182,8 +189,7 @@
 	<div style="padding:1rem; font-size:1.5rem; text-align:center; display:flex; flex-direction:column; background-color:#333;">
 		<i class="fas fa-anchor" style="cursor:pointer; margin-bottom:1rem;" title="View Ship" onclick="updateShipView(true)"></i>
 		<i class="fas fa-skull-crossbones" style="cursor:pointer; margin-bottom:auto;" title="View Memorial" onclick="updateMemorial(true)"></i>
-		<i id="autosave" class="fas fa-sync" style="margin-bottom:1rem;" title="Auto-save" onclick="toggleAutoSave()"></i>
-		<i class="fas fa-window-restore" style="cursor:pointer;" title="Load Game" onclick="load()"></i>
+		<i id="autosave" class="fas fa-save" title="Auto-save" onclick="toggleAutoSave()"></i>
 	</div>
 </div>
 
@@ -282,6 +288,15 @@ function prepareNumberSelect(id, confirmText, listener) {
 }
 
 function updateJobLists(selectedCrew) {
+	let instructions = document.getElementById('assign-instructions');
+	let shownInstructions = instructions.children[0];
+	let hiddenInstructions = instructions.children[1];
+	if(mobileView) {
+		shownInstructions = instructions.children[1];
+		hiddenInstructions = instructions.children[0];
+	}
+	shownInstructions.style.display = 'inline';
+	hiddenInstructions.style.display = 'none';
 	let areas = {
 		unassigned: document.getElementById('unassigned-area'),
 		helm: document.getElementById('helm-area'),
@@ -353,6 +368,25 @@ function updateJobLists(selectedCrew) {
 			ev.dataTransfer.dropEffect = 'move';
 		});
 	});
+	let jobSuccessChanceData = [
+		{ el: document.getElementById('helm-success-chance'), workers: filterWorkers(crew.filter(w => w.job == 'helm')) },
+		{ el: document.getElementById('deck-success-chance'), workers: filterWorkers(crew.filter(w => w.job == 'deck')) },
+		{ el: document.getElementById('sails-success-chance'), workers: filterWorkers(crew.filter(w => w.job == 'sails')) },
+	];
+	jobSuccessChanceData[0].chance = jobSuccessChanceData[0].workers.filter(w => w.captain).length;
+	for(let i=1; i<3; i++) {
+		let data = jobSuccessChanceData[i];
+		data.chance = Math.min(5, 1 + data.workers.length) / 6;
+	}
+	let anyScrappers = false;
+	for(let data of jobSuccessChanceData) {
+		let hasScrappers = data.workers.some(w => hasAttribute(w, flaw.scrapper));
+		if(hasScrappers) {
+			anyScrappers = true;
+		}
+		data.el.textContent = `${Math.round(100*data.chance)}%${hasScrappers ? ' *' : ''}`;
+	}
+	document.getElementById('scrapper-warning').style.display = anyScrappers ? 'block' : 'none';
 }
 
 function assignPirateToJob(pirate, job) {
@@ -390,6 +424,7 @@ function updateCrewList() {
 				</div>
 			`);
 			holder.appendChild(element);
+			window.setTimeout(() => element.scrollIntoView({ behavior: "smooth", block: "end" }), 10);
 		}
 		// clickable overlay — element itself not clickable on svg part, for some reason
 		let overlay = inflate(`<div class="overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:pointer;"></div>`);
@@ -482,8 +517,8 @@ function updatePirateView(pirate) {
 		updateNameChanger(pirate, true);
 	}
 	// portrait
-	let portrait = document.getElementById('pirate-man-portrait');
-	let hiddenPortrait = document.getElementById('pirate-lady-portrait');
+	let portrait = document.getElementById('pirate-man-svg');
+	let hiddenPortrait = document.getElementById('pirate-lady-svg');
 	if(pirate.female) {
 		let ladyPortrait = hiddenPortrait;
 		hiddenPortrait = portrait;
@@ -620,11 +655,20 @@ function setSvgElVisibility(el, visible) {
 }
 
 function updatePirateEl(pirate, graphic) {
+	graphic.blood4booty = { pirate: pirate };
 	if(graphic.style.opacity == 1) { // if opacity is 1, that means the svg has loaded, so we can just update it
-		updatePirateSvg(pirate, graphic.contentDocument);
-	} else { // otherwise, we need to wait for the svg to load first
-		graphic.addEventListener('load', () => {
+		let targetSvg = `pirate-${pirate.female ? 'lady' : 'man'}.svg`;
+		let svg = graphic.data.split('/').pop();
+		if(svg != targetSvg) {
+			graphic.setAttribute('data', targetSvg);
+			graphic.style.opacity = 0;
+		} else {
 			updatePirateSvg(pirate, graphic.contentDocument);
+		}
+	} else { // otherwise, we need to wait for the svg to load first
+		graphic.addEventListener('load', event => {
+			let pirateToRender = event.target.blood4booty.pirate;
+			updatePirateSvg(pirateToRender, event.target.contentDocument);
 			graphic.style.opacity = 1;
 		}, false);
 	}
@@ -739,7 +783,7 @@ function updateTopBar() {
 	});
 }
 
-async function addToLog(message, wait = 1000) {
+async function addToLog(message, wait = 2000) {
 	return new Promise(resolve => {
 		let alreadyPaused = paused;
 		if(!autoPlay && !alreadyPaused) {
@@ -1022,6 +1066,10 @@ function newGame() {
 // initial UI setup
 let jobs = [
 	{
+		id: 'unassigned',
+		name: 'No Job',
+	},
+	{
 		id: 'helm',
 		name: 'Helm',
 	},
@@ -1033,10 +1081,6 @@ let jobs = [
 		id: 'sails',
 		name: 'Sails',
 	},
-	{
-		id: 'unassigned',
-		name: 'No Job',
-	},
 ];
 let jobHolder = document.getElementById('job-area-holder');
 jobs.forEach((job, i) => {
@@ -1044,6 +1088,7 @@ jobs.forEach((job, i) => {
 		<div style="display:flex; flex-direction:column; width:7rem; margin${i==1 ? ':0 .5rem' : (i==2 ? '-right:.5rem' : '0')};">
 			<div>${job.name}</div>
 			<div id="${job.id}-area" style="background-color:tan; flex-grow:1; overflow:auto; padding:.5rem;"></div>
+			<div id="${job.id}-success-chance" style="opacity:.6; white-space:nowrap;">${i ? '' : 'Success chance:'}</div>
 		</div>
 	`);
 	area.addEventListener('dragenter', ev => { ev.preventDefault(); return false; });
@@ -1058,6 +1103,9 @@ jobs.forEach((job, i) => {
 	});
 	jobHolder.appendChild(area);
 });
+if(localStorage.getItem('saved-game')) {
+	document.getElementById('load-button').style.display = 'inline';
+}
 
 // the one UI global
 mobileView = false;
@@ -1067,6 +1115,7 @@ function checkScreenSize() {
 		mobileView = enteredMobileView;
 		onMobileModeUpdated();
 	}
+	document.getElementById('pirate-profile').style.flexDirection = mobileView ? 'column' : 'row';
 }
 window.onresize = checkScreenSize;
 checkScreenSize();
