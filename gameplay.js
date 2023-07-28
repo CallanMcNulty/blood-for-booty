@@ -1,11 +1,11 @@
-const DEBUG_MODE = false;
+let DEBUG_MODE = false;
 async function chooseManuallyFromTable(msg, table) {
 	return table[await getChoice(msg, table.map((item, i) => ({ value:i, text:item.name })))];
 }
 async function chooseDieRollManually(msg, successFunc) {
 	let opts = [];
 	for(let i=1; i<=6; i++) {
-		opts.push({ value:i, text:`${i}${successFunc ? ` - ${['A','B','C','D','E'][successFunc(i)]}`:''}` });
+		opts.push({ value:i, text:`${i}${successFunc ? ` (${successFunc(i)})`:''}` });
 	}
 	return await getChoice(msg, opts);
 }
@@ -66,7 +66,7 @@ function getPirateName(pirate) {
 	}
 	let names = [];
 	if(pirate.captain) {
-		names.push('Captain');
+		names.push('Cap’n');
 	}
 	if(nickname) {
 		names.push(`“${nickname}”`);
@@ -216,7 +216,7 @@ function skillValue(pirateGroup, usedSkill) {
 	return filterByAttr(pirateGroup, usedSkill).length;
 }
 
-async function addAttribute(pirate, attr) {
+async function addAttribute(pirate, attr, unique=true) {
 	const addingSkill = attributeIsSkill(attr);
 	const addingFlaw = attributeIsFlaw(attr);
 	if(
@@ -229,7 +229,7 @@ async function addAttribute(pirate, attr) {
 	// add it
 	pirate.attributes.push(attr);
 	updateCrewList();
-	await addToLog(`${getPirateName(pirate)} gained the "${attr.name}" ${addingSkill ? 'Skill' : addingFlaw ? 'Flaw' : 'Feature'}`);
+	await addToLog(`${getPirateName(pirate)} gained the “${attr.name}” ${addingSkill ? 'Skill' : addingFlaw ? 'Flaw' : 'Feature'}`);
 	// check for legendary pirate status
 	if(addingSkill) {
 		let skills = pirate.attributes.filter(a => attributeIsSkill(a));
@@ -242,7 +242,9 @@ async function addAttribute(pirate, attr) {
 			}
 		}
 	}
-	await ensureUniqueness(pirate);
+	if(unique) {
+		await ensureUniqueness(pirate);
+	}
 }
 
 async function removeAttribute(pirate, attr) {
@@ -255,14 +257,14 @@ async function removeAttribute(pirate, attr) {
 		} else if(attributeIsSkill(attr)) {
 			type = 'Skill';
 		}
-		await addToLog(`${getPirateName(pirate)} lost ${attr.name} ${type}`);
+		await addToLog(`${getPirateName(pirate)} lost the “${attr.name}” ${type}`);
 		await ensureUniqueness(pirate);
 	}
 	updateCrewList();
 }
 
 async function ensureUniqueness(pirate) {
-	while(pirates.some(other => {
+	while(crew.some(other => {
 		return other.alive && other != pirate && other.attributes.length == pirate.attributes.length &&
 			pirate.attributes.every(a => hasAttribute(other, a))
 		;
@@ -304,7 +306,7 @@ async function rollSkill(pirate, alreadyRolled = null) {
 				chosenSkill = await getChoice(
 					`${getPirateName(pirate)} needs a skill. What will it be?`, Object.values(skill).map(s => ({ value:s, text:s.name }))
 				);
-				await addAttribute(pirate, chosenSkill);
+				await addAttribute(pirate, chosenSkill, false);
 				await rollSkill(pirate, chosenSkill);
 			} else {
 				chosenSkill = alreadyRolled;
@@ -417,10 +419,6 @@ async function addPirateToCrew(newPirate) {
 }
 
 function cannotWork(pirate, workers) {
-	// captain
-	if(pirate.captain && workers.length < 2) {
-		return 'Captain cannot work alone';
-	}
 	// nobody works while mast is broken
 	if(shipPermanentFlags.has('broken_mast')) {
 		return 'Repairing the mast is more important than normal jobs';
@@ -430,7 +428,7 @@ function cannotWork(pirate, workers) {
 		return 'Given the week off for hurt hand';
 	}
 	if(pirate.weeklyFlags.has('scrapped')) {
-		return 'Got in a fight and is to hurt to work';
+		return 'Got in a fight and is too hurt to work';
 	}
 	if(pirate.weeklyFlags.has('sick') && filterByAttr(workers, legend.terrible).length == 0) {
 		return 'Too sick to work';
@@ -453,7 +451,7 @@ function cannotWork(pirate, workers) {
 	// hook club
 	if(pirate.permanentFlags.has('hook_club')) {
 		let hookClub = crew.filter(pirate => pirate.permanentFlags.has('hook_club'));
-		if(hookClub.some(p => !workers.includes(pirate))) {
+		if(hookClub.some(p => !workers.includes(p))) {
 			return 'Insists on working with the hook club';
 		}
 	}
@@ -498,7 +496,7 @@ function doesNotDoAnything(pirate) {
 	if(pirate.voyageFlags.has('boxed')) {
 		return 'Stuck in a box';
 	} else if(pirate.voyageFlags.has('gangrenous')) {
-		return 'Cannot do anything with gangrene';
+		return 'Has gangrene and cannot do anything';
 	}
 }
 
@@ -518,9 +516,9 @@ async function rollOnCaptainsMadnessTable() {
 }
 
 async function doWeek() {
-	await addToLog(`New week started`, 1500);
+	await addToLog(`New week started`);
 	if(autoSave) {
-		localStorage.setItem('saved-game', serializeGameState());
+		localStorage.setItem('blood4booty-saved-game', serializeGameState());
 	}
 	if(shipPermanentFlags.has('becalmed')) {
 		if(roll() > 3) {
@@ -584,7 +582,7 @@ async function doWeek() {
 	let scrappyPirates = filterByAttr(crew, flaw.scrapper)
 	for(let scrapper of scrappyPirates) {
 		let workers = team[scrapper.job];
-		if(workers && workers.length > 1 && roll() == 1 && filterByAttr(workers, legend.terrible) == 0) {
+		if(workers && workers.length > 1 && roll() == 1 && filterByAttr(workers, legend.terrible).length == 0) {
 			workers = workers.filter(w => w != scrapper);
 			let target = randomResult(workers);
 			scrapper.weeklyFlags.add('scrapped');
@@ -593,10 +591,11 @@ async function doWeek() {
 		}
 	}
 	// helm
-	if(team.helm.length < 2 && !shipPermanentFlags.has('broken_mast')) {
+	await addToLog(`The Captain takes the Helm…`);
+	let helmsmen = filterWorkers(team.helm);
+	if(helmsmen.length < 2 && !shipPermanentFlags.has('broken_mast')) {
 		await rollOnCaptainsMadnessTable();
 	}
-	let helmsmen = filterWorkers(team.helm);
 	let helmSucceeded = helmsmen.includes(getCaptain());
 	if(!(getCaptain().voyageFlags.has('no_heading_change') || getCaptain().permanentFlags.has('whale_obsession'))) {
 		if(helmSucceeded) {
@@ -608,22 +607,26 @@ async function doWeek() {
 		} else {
 			let helmRoll = roll();
 			if(DEBUG_MODE) {
-				helmRoll = await chooseDieRollManually('Helm roll', n => n > 3 ? 0 : 1);
+				helmRoll = await chooseDieRollManually('Helm roll', n => n > 3 ? 'succeed' : 'fail');
 			}
 			headingToIsland = helmRoll > 3;
 			await addToLog(`Captain cannot steer the ship. Our heading is now ${headingToIsland ? 'island' : 'port'}`);
 		}
+	} else {
+		await addToLog(`Captain refuses to change our heading`);
 	}
 	// deck
 	let deckhands = filterWorkers(team.deck);
+	await addToLog(`The crew on the Decks get to work…`);
 	let result = roll();
 	if(DEBUG_MODE) {
-		result = await chooseDieRollManually('Deck job roll', n => (n == 1 || n+deckhands.length) < 6 ? 1 : 0);
+		result = await chooseDieRollManually('Deck job roll', n => (n == 1 || n+deckhands.length) < 6 ? 'fail' : 'succeed');
 	}
 	if(result > 1) {
 		result += deckhands.length;
 	}
 	if(result < 6) {
+		await addToLog(`Decks running poorly. Something bad may happen…`);
 		let event = randomResult(crewEventTable);
 		if(DEBUG_MODE) {
 			event = await chooseManuallyFromTable('Choose Crew Event', crewEventTable);
@@ -634,9 +637,10 @@ async function doWeek() {
 	}
 	// sails
 	let sailors = filterWorkers(team.sails);
+	await addToLog(`The crew set Sail…`);
 	result = roll();
 	if(DEBUG_MODE) {
-		result = await chooseDieRollManually('Sails job roll', n => (n == 1 || n+sailors.length < 6) ? 1 : 0);
+		result = await chooseDieRollManually('Sails job roll', n => (n == 1 || n+sailors.length < 6) ? 'fail' : 'succeed');
 	}
 	if(result > 1) {
 		result += sailors.length;
@@ -659,6 +663,7 @@ async function doWeek() {
 		}
 	} else {
 		// still at sea
+		await addToLog(`No land in sight`);
 		let event = randomResult(seaEncounterTable);
 		if(DEBUG_MODE) {
 			event = await chooseManuallyFromTable('Choose Sea Encounter', seaEncounterTable);
@@ -939,15 +944,18 @@ async function doWeek() {
 		switch(roll()) {
 			case 1:
 				incrementGrog(-1);
+				await addToLog('Rats ate through 1 Grog barrel');
 				break;
 			case 2:
 				incrementBooty(-1);
+				await addToLog('Rats ruined 1 piece of Booty');
 				break;
 			case 6:
 				let petRatRecipient = randomResult(crew, filterByAttr(crew, feature.rat));
 				if(petRatRecipient) {
 					await addAttribute(petRatRecipient, feature.rat);
 				}
+				await addToLog(`${getPirateName(petRatRecipient)} takes rat as a pet`);
 				break;
 		}
 	}
@@ -1040,6 +1048,15 @@ function serializeGameState() {
 	});
 }
 
+function setDebug(enabled) {
+	DEBUG_MODE = enabled;
+	if(enabled) {
+		localStorage.setItem('blood4booty-debug', 'yes');
+	} else {
+		localStorage.removeItem('blood4booty-debug');
+	}
+}
+
 function loadGameState(saved) {
 	grog = saved.grog;
 	booty = saved.booty;
@@ -1075,7 +1092,7 @@ function loadGameState(saved) {
 }
 
 function load() {
-	let saved = localStorage.getItem('saved-game');
+	let saved = localStorage.getItem('blood4booty-saved-game');
 	if(saved) {
 		resetGlobals();
 		loadGameState(JSON.parse(saved));
@@ -1106,7 +1123,7 @@ function resetGlobals() {
 function beginGame() {
 	resetGlobals();
 	(async () => {
-		await addToLog(`Generating starting crew`, 1500);
+		await addToLog(`Generating starting crew`);
 		for(let i=0; i<8; i++) {
 			await rollPirate();
 		}

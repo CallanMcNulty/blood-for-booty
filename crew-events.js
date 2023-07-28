@@ -105,7 +105,7 @@ const crewEventTable = [
 		description: 'Pirates are brawling!',
 		continueText: 'Let them fight it out',
 		handler: async () => {
-			let killCount = brawl(await filterDangerousEventActors(crew));
+			let killCount = await brawl(await filterDangerousEventActors(crew));
 			if(killCount) {
 				return { description:`The free-for-all claims the lives of ${killCount} pirate(s).` };
 			} else {
@@ -195,34 +195,30 @@ const crewEventTable = [
 		continueText: 'See what they’re up to',
 		handler: async () => {
 			let hookies = crew.filter(pirate => hasAttribute(pirate, feature.hook) || hasAttribute(pirate, feature.leftHook));
-			let newMembersJoined = false;
+			let newMembers = [];
 			if(hookies.length) {
 				let existingHookClub = crew.filter(pirate => pirate.permanentFlags.has('hook_club'));
-				if(existingHookClub.length) {
-					let newMember = randomResult(hookies, existingHookClub);
-					if(newMember) {
-						member.permanentFlags.add('hook_club');
-						await addToLog(`${getPirateName(member)} joined Hook Club`);
-						newMembersJoined = true;
-					}
-				} else {
+				if(!existingHookClub.length) {
+					newMembers = hookies;
 					let founder = randomResult(hookies);
 					await addToLog(`${getPirateName(founder)} founded Hook Club`);
-					let members = crew.filter(pirate => pirate == founder || roll(pirate) == 6);
-					for(let member of members) {
-						if(!crew.includes(member)) {
-							continue;
-						}
-						member.permanentFlags.add('hook_club');
-						await addToLog(`${getPirateName(member)} joined Hook Club`);
-						newMembersJoined = true;
-						if(!hookies.includes(member)) {
-							await addAttribute(member, feature.hook);
-						}
+				}
+				for(let pirate of crew) {
+					if(!pirate.permanentFlags.has('hook_club') && !newMembers.includes(pirate) && roll(pirate) == 6) {
+						newMembers.push(pirate);
 					}
 				}
 			}
-			if(newMembersJoined) {
+			if(newMembers.length) {
+				for(let member of newMembers) {
+					member.permanentFlags.add('hook_club');
+					await addToLog(`${getPirateName(member)} joined Hook Club`);
+					newMembersJoined = true;
+					if(!hookies.includes(member)) {
+						await addAttribute(member, feature.hook);
+					}
+				}
+				updateCrewList();
 				return { continueText:'Try to trust this shadowy organization', description:'The Hook Club has expanded. Members of the Hook Club insist on working together on any jobs, and any new pirates with hooks that join the crew immediately join the club. The club only stops existing if its members are wiped out.' };
 			} else {
 				return { continueText:'For the best', description:'The Hook Club has not expanded.' };
