@@ -74,7 +74,6 @@ const shipFlagText = {
 	carrying_messenger: { name:'Messenger', description:'We are carrying a passenger with a message to deliver.' },
 	broken_mast: { name:'Broken Mast', description:'The ship will not function until the crew repair the mast.' },
 	mast_rot: { name:'Collapsed Mast', description:'Sails will be less effective until the mast can be repaired at a port.' },
-	devils_fist: { name:'Devil’s Fist', description:'We are carrying a giant ruby worth 50 Booty, but it must be spent all at once.' },
 	hull_damage: { name:'Hull Damage', description:'The ship needs 10 Booty worth of repairs.' },
 	treasure_map: { name:'Treasure Map', description:'The ship is carrying a treasure map that will help leap us to the most profitable location.' },
 	becalmed: { name:'Becalmed', description:'We are in the doldrums and cannot proceed until the wind picks up.' },

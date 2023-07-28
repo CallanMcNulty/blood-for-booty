@@ -88,8 +88,8 @@ const islandExplorationTable = [
 		handler: async (explorers) => {
 			let result = roll() + skillValue(crew, skill.shootin);
 			if(result < 3) {
-				incrementBooty(-5);
-				return { continueText:'Fall back', description:'The ship is shot to bits, losing 5 Booty.' };
+				let loss = incrementBooty(-5);
+				return { continueText:'Fall back', description:`The ship is shot to bits${loss ? `, losing ${-loss} Booty` : ''}.` };
 			} else if(result < 5) {
 				return { continueText:'We’ll get them next time', description:'The ship fights off the Navy for a while but has to flee undamaged.'};
 			} else {
@@ -405,7 +405,7 @@ const islandExplorationTable = [
 		continueText: 'Leave empty-handed',
 		handler: async (explorers) => {
 			explorers = await filterNonScared(explorers);
-			explorers.forEach(p => p.voyageFlags.add('ate_bad_fruit'));
+			explorers.forEach(p => p.permanentFlags.add('ate_bad_fruit'));
 		}
 	},
 	{
@@ -587,8 +587,10 @@ const islandExplorationTable = [
 		description: 'As well as finding some Booty, the pirates find the legendary ruby known as the Devil’s Fist. This is worth 50 Booty but must be spent in one transaction.',
 		continueText: 'Grab it',
 		handler: async (explorers) => {
-			shipPermanentFlags.add('devils_fist');
-			incrementBooty(explorers.map(p => roll()).reduce((acc,curr) => acc+curr, 0), explorers);
+			devilsFist++;
+			let gained = explorers.map(p => roll()).reduce((acc,curr) => acc+curr, 0);
+			incrementBooty(gained, explorers);
+			await addToLog(`Devil’s Fist and ${gained} Booty claimed`);
 		}
 	},
 ];

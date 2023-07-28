@@ -154,11 +154,17 @@ const portHappeningTable = [
 				return { continueText:'Maybe next time', description:`We do not have enough Booty for this business.` };
 			}
 			let doIt = await getChoice('Should 10 Booty be spent on the goods?', [
-				{ value: true, text: 'Yes.' },
-				{ value: false, text: 'No, it’s too risky.' },
+				{ value: 1, text: 'Yes' },
+				{ value: 0, text: 'No, it’s too risky' },
+				...(devilsFist ? [ { value: 2, text: 'Yes, and pay with Devil’s Fist, because I’m insane' } ] : []),
 			]);
 			if(doIt) {
-				incrementBooty(-10);
+				if(doIt == 1) {
+					incrementBooty(-10);
+				} else {
+					devilsFist--;
+					updateTopBar();
+				}
 				shipVoyageFlags.add('carrying_high_value_goods');
 				await addToLog('High value goods purchased');
 			}
@@ -238,7 +244,7 @@ const portHappeningTable = [
 			}
 			let doIt = await getChoice('Should we buy 20 Grog for just 19 Booty?', [
 				{ value: true, text: 'Yes!' },
-				{ value: false, text: 'No, it tastes strange.' },
+				{ value: false, text: 'No, it tastes strange' },
 			]);
 			if(doIt) {
 				incrementBooty(-19);
@@ -358,11 +364,17 @@ const portHappeningTable = [
 				return { continueText:'Keep sailing', description:'We do not have enough Booty to pay.' };
 			}
 			let pay = await getChoice('Pay the 5 Booty?', [
-				{ value: true, text: 'Yes' },
-				{ value: false, text: 'No, just keep sailing' },
+				{ value: 1, text: 'Yes' },
+				{ value: 0, text: 'No, just keep sailing' },
+				...(devilsFist ? [ { value: 2, text: 'Yes, and pay with Devil’s Fist' } ] : []),
 			]);
 			if(pay) {
-				incrementBooty(-5);
+				if(pay == 1) {
+					incrementBooty(-5);
+				} else {
+					devilsFist--;
+					updateTopBar();
+				}
 			} else {
 				shipWeeklyFlags.add('skip_port_actions');
 			}
@@ -436,10 +448,9 @@ const portHappeningTable = [
 		handler: async () => {
 			let availableCrew = await filterNonScared(crew);
 			let lover = randomResult(availableCrew);
-			let result = roll();
-			incrementBooty(-result);
+			let result = incrementBooty(-roll());
 			let poss = getPronouns(lover).poss;
-			await addToLog(`${getPirateName(lover)} spent ${result} extra Booty on ${poss} new sweetheart`);
+			await addToLog(`${getPirateName(lover)} spent ${-result ?? 'no'} extra Booty on ${poss} new sweetheart`);
 			if(result == 1) {
 				await kill(lover, 'left the pirate life', false);
 				return { continueText:'What a softie', description:`${getPirateName(lover)} decides to settle down with ${poss} sweetheart and leaves the crew.` };
@@ -455,7 +466,7 @@ const portHappeningTable = [
 			let buyer = randomResult(crew);
 			let petFeatures = [ feature.parrot, feature.monkey, feature.rat, feature.crab ];
 			let desiredPet = randomResult(petFeatures.filter(a => !buyer.attributes.includes(a)));
-			if(desiredPet) {
+			if(desiredPet && booty >= 5) {
 				incrementBooty(-5);
 				await addAttribute(buyer, desiredPet);
 				return { continueText:'How cute!', description:`${getPirateName(buyer)} decides to spend 5 Booty on a new ${desiredPet.name}.` };
@@ -556,11 +567,17 @@ const portHappeningTable = [
 				return { continueText:'Thanks anyway', description:'He is selling the map for 10 Booty, but we don’t have enough' };
 			}
 			let buy = await getChoice('Should we buy the map for 10 Booty?', [
-				{ value: true, text: 'Yes, we can make that much back' },
-				{ value: false, text: 'No, 10 is too much' },
+				{ value: 1, text: 'Yes, we can make that much back' },
+				{ value: 0, text: 'No, 10 is too much' },
+				...(devilsFist ? [ { value: 2, text: 'Yes, and pay with Devil’s Fist' } ] : []),
 			]);
 			if(buy) {
-				incrementBooty(-10);
+				if(buy == 1) {
+					incrementBooty(-10);
+				} else {
+					devilsFist--;
+					updateTopBar();
+				}
 				shipPermanentFlags.add('treasure_map');
 				await addToLog('Acquired treasure map');
 			}

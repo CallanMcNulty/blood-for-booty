@@ -1,12 +1,8 @@
-- Better Devil's Fist support
-	- Allow spending without requiring excess Booty
-	- Disallow depositing
-	- Allow crew to carry multiple
-	- Show number in graphic
-	- Allow overpayment w/ Devil's Fist
 - Explanation tutorial text (what does each job do?)
 - Investigate bug with legendary pirate status not being conferred after restart
 	- Additional symptom: After save and re-load, legend status was granted and captainship shifted to legendary pirate
 - Better support for Killer
+	- More logs
+	- Verify that mid-event deaths don't break anything
 - Download save game
 - Download/save log history

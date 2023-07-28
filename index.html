@@ -67,9 +67,9 @@
 		<span style="margin-right:1rem;"><i class="fas fa-beer"></i> <span id="grog">0</span></span>
 		<span style="margin-right:1rem;">
 			<i class="fas fa-coins"></i> <span id="booty">0</span>
-			<span id="devils-fist-icon" style="display:none;">+ <i class="far fa-gem"></i></span>
+			<span id="devils-fist-icon" style="display:none;">+ <i class="far fa-gem"></i><span id="devils-fist-count"></span></span>
 		</span>
-		<span id="stash" style="margin-right:1rem;"><i class="fas fa-piggy-bank"></i> <span id="stashed-booty">0</span></span>
+		<span id="stash" style="margin-right:1rem; display:none;"><i class="fas fa-piggy-bank"></i> <span id="stashed-booty">0</span></span>
 		<span style="margin-right:1rem;"><i class="far fa-compass"></i> <span id="heading">Island</span></span>
 	</span>
 	<span id="time" style="margin-left:auto;">
@@ -93,6 +93,9 @@
 					<div id="grog-purchase" style="margin-bottom:1rem;">
 						Buy Grog for <span id="grog-price">1</span> Booty each
 					</div>
+					<button id="devils-fist-buy-grog" style="margin-top:1rem; display:none;" onclick="devilsFistForGrog()">
+						Buy 50 with Devil’s Fist
+					</button>
 				</div>
 				<div class="port-action">
 					<div>Booty stash</div>
@@ -240,6 +243,13 @@ async function recruitPirate(event) {
 		switchInterface('port');
 	}
 	event.target.disabled = false;
+}
+
+function devilsFistForGrog() {
+	if(devilsFist) {
+		devilsFist--;
+		incrementGrog(Math.floor(50 / getGrogPrice()));
+	}
 }
 
 function updateNumberSelect(element) {
@@ -768,7 +778,8 @@ function updateTopBar() {
 	document.getElementById('booty').textContent = booty;
 	document.getElementById('stash').style.display = stashedBooty ? 'inline' : 'none';
 	document.getElementById('stashed-booty').textContent = stashedBooty;
-	document.getElementById('devils-fist-icon').style.display = shipPermanentFlags.has('devils_fist') ? 'inline' : 'none';
+	document.getElementById('devils-fist-icon').style.display = devilsFist ? 'inline' : 'none';
+	document.getElementById('devils-fist-count').textContent = devilsFist > 1 ? devilsFist : '';
 	let cap = getCaptain();
 	document.getElementById('heading').textContent = (cap && cap.permanentFlags.has('whale_obsession')) ?
 		'White Whale' : (headingToIsland ? 'Island' : 'Port')
@@ -903,6 +914,9 @@ function updatePort() {
 	let selector = document.getElementById('grog-purchase-selector');
 	selector.blood4booty.limits.max = Math.min(maxTradeAmount, shipWeeklyFlags.has('no_grog_sale') ? 0 : (booty / grogPrice));
 	updateNumberSelect(selector);
+	let devilsFistBuyButton = document.getElementById('devils-fist-buy-grog')
+	devilsFistBuyButton.style.display = devilsFist ? 'inline' : 'none';
+	devilsFistBuyButton.disabled = maxTradeAmount != Infinity || shipWeeklyFlags.has('no_grog_sale');
 	// stash selectors
 	selector = document.getElementById('stash-deposit');
 	selector.blood4booty.limits.max = Math.min(maxTradeAmount, booty);
@@ -912,7 +926,7 @@ function updatePort() {
 	updateNumberSelect(selector);
 	// buttons
 	document.getElementById('recruit-button').disabled = booty < 1 || grog < 1;
-	document.getElementById('win-button').disabled = booty < 300;
+	document.getElementById('win-button').disabled = booty + 50*devilsFist < 300;
 }
 
 async function doPortActions() {
@@ -968,7 +982,7 @@ function updateOptions(options, onSelected, singleSelect=false) {
 	}
 	for(let opt of options) {
 		let optEl = inflate(`
-			<div style="position:relative; cursor:pointer; align-self:center; margin-bottom:.5rem;">
+			<div style="position:relative; cursor:pointer; align-self:center; margin-bottom:1rem;">
 				<span style="position:absolute; left:-1em;">${opt.selected ? '✔' : ''}</span>
 				<span>${opt.text}</span>
 			</div>
@@ -1016,7 +1030,8 @@ async function doAction(prompt, description, continueText, options, singleSelect
 	});
 }
 
-async function getChoice(prompt, options, min=1, max=1, auto=false) {
+async function getChoice(prompt, options, min=1, max=1) {
+	let auto = false;
 	if(auto || (max == min && options.length == max)) {
 		let number = min;
 		if(auto) {

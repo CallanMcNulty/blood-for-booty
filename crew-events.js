@@ -388,9 +388,8 @@ const crewEventTable = [
 				hasAttribute(pirate, feature.leftHook)
 			);
 			if(!dismembered.length) {
-				let result = -roll()-roll();
-				result = incrementBooty(result);
-				return { continueText:'Such an incompetent crew!', description:`Nobody is gangrenous, but ${result} Booty is lost in a loading accident.` };
+				let result = incrementBooty(-roll()-roll());
+				return { continueText:'Such an incompetent crew!', description:`Nobody is gangrenous`+ result ? `, but ${-result} Booty is lost in a loading accident.` : '.' };
 			} else {
 				let choice = await getChoice('Which pirate contracted gangrene?', pirateOptions(dismembered));
 				choice.voyageFlags.add('gangrenous');
@@ -437,7 +436,7 @@ const crewEventTable = [
 		name: 'Barnacles',
 		description: 'The ship has even more barnacles than normal, and it’s starting to look like a mess. As soon as the ship returns to port the Captain will insist on spending 3 Booty getting them removed.',
 		continueText: 'A worthy expense',
-		handler: async () => { shipVoyageFlags.add('barnacles'); }
+		handler: async () => { shipPermanentFlags.add('barnacles'); }
 	},
 	{
 		name: 'Mast Rot',
@@ -466,8 +465,8 @@ const crewEventTable = [
 				if(result == 1) {
 					await kill(diver, 'drowned while diving for pearls', true);
 				} else if(result > 4) {
-					await addToLog(`${getPirateName(diver)} successfully recovered a pearl.`);
 					incrementBooty(result);
+					await addToLog(`${getPirateName(diver)} successfully recovered a pearl.`);
 				} else {
 					await addToLog(`${getPirateName(diver)} could not find any pearls.`);
 				}

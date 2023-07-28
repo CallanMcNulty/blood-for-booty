@@ -92,11 +92,10 @@ const seaEncounterTable = [
 			let availableCrew = filterAvailable(crew);
 			let result = roll() + skillValue(availableCrew, skill.shootin);
 			if(result < 3) {
-				incrementBooty(-10);
-				return { continueText:'Drive them off', description:'The other pirates manage to board the ship and steal 10 Booty.' };
+				let stolen = incrementBooty(-10);
+				return { continueText:'Drive them off', description:`The other pirates managed to board the ship and steal ${-stolen} Booty.` };
 			} else if(result > 4) {
-				let gainedBooty = result * 2;
-				incrementBooty(gainedBooty, availableCrew);
+				let gainedBooty = incrementBooty(result * 2, availableCrew);
 				return { continueText:'Jeer at them while sailing away with their stuff', description:`Our crew raided their ships for ${gainedBooty} Booty.` };
 			}
 			return { description:'The crew just manage to fight the other pirates off.' };
@@ -161,6 +160,18 @@ const seaEncounterTable = [
 				case 2: {
 					let amount = await getNumberInput('Buy Grog', 'How much Grog should be bought?', 'Buy', 0, booty*2);
 					incrementBooty(-Math.ceil(amount/2));
+					let devilsFistsSpent = 0;
+					if(devilsFist == 1) {
+						devilsFistsSpent = await getChoice('Should we spend the Devil’s Fist on Grog?', [
+							{ value: 1, text: 'Yes' }, { value: 0, text: 'No' },
+						]);
+					} else if(devilsFist > 1) {
+						devilsFistsSpent = await getNumberInput('Buy Grog', 'How many Devil’s Fists should we spend on Grog?', 'Spend', 0, devilsFist);
+					}
+					if(devilsFistsSpent) {
+						amount += devilsFistsSpent * 100;
+						devilsFist -= devilsFistsSpent;
+					}
 					incrementGrog(amount);
 					break;
 				}
@@ -172,7 +183,7 @@ const seaEncounterTable = [
 		description: 'A gush of superheated water hits the ship.',
 		continueText: 'Save what we can',
 		handler: async () => {
-			let choices =  await getChoice('What 2 things should be lost to the volcano?', [
+			let choices = await getChoice('What 2 things should be lost to the volcano?', [
 				{ value: 0, text: 'a crew member' },
 				{ value: 1, text: '1-6 grog' },
 				{ value: 2, text: '1-6 booty' },
@@ -202,9 +213,8 @@ const seaEncounterTable = [
 		handler: async () => {
 			let result = roll();
 			if(result < 3) {
-				let loss = roll()+roll()+roll();
-				incrementBooty(-loss);
-				return { description:`The ship is damaged and ${loss} Booty is lost.` };
+				let loss = incrementBooty(-roll()-roll()-roll());
+				return { description:`The ship is damaged and ${-loss ?? 'no'} Booty is lost.` };
 			} else {
 				shipWeeklyFlags.add('early_arrival');
 				headingToIsland = result < 5;
@@ -219,7 +229,7 @@ const seaEncounterTable = [
 		handler: async () => {
 			let availableCrew = await filterNonScared(crew);
 			while(availableCrew.length) {
-				let choice =  await getChoice('What will be sacrificed to the whirlpool?', [
+				let choice = await getChoice('What will be sacrificed to the whirlpool?', [
 					{ value: 0, text: 'A crew member' },
 					{ value: 1, text: '1 grog' },
 					{ value: 2, text: '1 booty' },
@@ -250,14 +260,13 @@ const seaEncounterTable = [
 		description: 'A big wave is coming.',
 		continueText: 'Surf’s up',
 		handler: async () => {
-			let avoid =  await getChoice('Should the ship try to avoid the wave?', [
+			let avoid = await getChoice('Should the ship try to avoid the wave?', [
 				{ value: true, text: 'Yes (lose 1-6 booty)' },
 				{ value: false, text: 'No (will either lose all booty or arrive early at destination)' },
 			]);
 			if(avoid) {
-				let loss = roll();
-				incrementBooty(-loss);
-				return { description:`The ship is tossed and loses ${loss} Booty.` };
+				let loss = incrementBooty(-roll());
+				return { description:`The ship is tossed and loses ${-loss ?? 'no'} Booty.` };
 			} else {
 				let result = roll();
 				if(result < 3) {
@@ -355,7 +364,7 @@ const seaEncounterTable = [
 		description: 'A barrel is floating in the sea. When the crew haul it up, they find a pirate inside.',
 		continueText: 'Greet the fellow pirate',
 		handler: async () => {
-			let accept =  await getChoice('Should the barrel pirate be taken on as crew?', [
+			let accept = await getChoice('Should the barrel pirate be taken on as crew?', [
 				{ value: true, text: 'Yes (the pirate may go crazy and kill someone)' },
 				{ value: false, text: 'No (no effect)' },
 			]);
@@ -395,7 +404,7 @@ const seaEncounterTable = [
 		description: 'Some dirty pirates have left a sinking ship.',
 		continueText: 'Greet the fellow pirates',
 		handler: async () => {
-			let accept =  await getChoice('What should be done with the pirates?', [
+			let accept = await getChoice('What should be done with the pirates?', [
 				{ value: true, text: 'Take them on as crew' },
 				{ value: false, text: 'Kill them for their stuff (2-12 booty and 1-6 grog)' },
 			]);
@@ -440,7 +449,7 @@ const seaEncounterTable = [
 		description: 'A group of treasure hunters want the pirates’ help.',
 		continueText: 'Approach them',
 		handler: async () => {
-			let accept =  await getChoice('What should be done about the treasure hunters?', [
+			let accept = await getChoice('What should be done about the treasure hunters?', [
 				{ value: true, text: 'Let them guide the ship to an island and take half of anything found' },
 				{ value: false, text: 'Raid them for Booty, they will fight back' },
 			]);
@@ -489,16 +498,20 @@ const seaEncounterTable = [
 		description: 'A group of explorers approach the ship.',
 		continueText: 'Greet them',
 		handler: async () => {
-			let accept =  await getChoice('What should be done about the explorers?', [
-				{ value: true, text: 'Let them guide the ship to an island at the cost of 5 Booty' },
-				{ value: false, text: 'Raid them for Booty' },
+			let accept = await getChoice('What should be done about the explorers?', [
+				...(booty >= 5 ? [ { value: 1, text: 'Let them guide the ship to an island at the cost of 5 Booty' } ] : []),
+				{ value: 0, text: 'Raid them for Booty' },
+				...(devilsFist ? [ { value: 2, text: 'Let them guide the ship in exchange for Devil’s Fist' } ] : []),
 			]);
 			if(accept) {
-				if(booty >= 5) {
+				if(accept == 1) {
 					incrementBooty(-5);
-					headingToIsland = true;
-					shipWeeklyFlags.add('early_arrival');
+				} else {
+					devilsFist--;
+					updateTopBar();
 				}
+				headingToIsland = true;
+				shipWeeklyFlags.add('early_arrival');
 			} else {
 				let availableCrew = filterAvailable(crew);
 				let result = roll() + skillValue(availableCrew, skill.swashbucklin);
@@ -623,7 +636,7 @@ const seaEncounterTable = [
 		description: 'Shadows and shapes grasp at the ship from below. They speak in a deep voice, demanding the Captain make a sacrifice.',
 		continueText: 'Give them something',
 		handler: async () => {
-			let choice =  await getChoice('What should be handed over to the shadow creatures?', [
+			let choice = await getChoice('What should be handed over to the shadow creatures?', [
 				{ value: 0, text: 'All crew that can be found but one, apart from the Captain' },
 				{ value: 1, text: 'All booty and grog' },
 				{ value: 2, text: 'Nothing (they will destroy the ship)' },
