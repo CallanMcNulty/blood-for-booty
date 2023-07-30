@@ -318,17 +318,18 @@ const portHappeningTable = [
 				{ value: true, text: 'Rescue the captain, no matter the risk' },
 				{ value: false, text: 'Let them burn' },
 			]);
+			let casualtyCount = 0;
 			if(rescue) {
 				let result = roll() + skillValue(availableCrew, skill.shootin) + skillValue(availableCrew, skill.swashbucklin);
 				if(result < 6) {
-					let casualtyCount = roll();
+					casualtyCount = roll();
 					await killRandomPirates(availableCrew, 'was killed in an attempt to rescue their captain', casualtyCount);
 				} else {
 					return { continueText:'Back to the ship', description:'The rescue attempt works and the crew all escape!' };
 				}
 			}
 			await kill(getCaptain(), 'was burned at the stake for witchcraft', true);
-			return { continueText:'Retreat', description:`The crew is fought off and the Captain is killed along with ${casualtyCount} prospective rescuer(s).` };
+			return { continueText:'Retreat', description:`The crew is fought off and the Captain is killed${casualtyCount ? ` along with ${casualtyCount} prospective rescuer(s)` : ''}.` };
 		}
 	},
 	{

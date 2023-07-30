@@ -609,7 +609,7 @@ const seaEncounterTable = [
 		description: 'We spot a completely helpless ship.',
 		continueText: 'Steal some Booty',
 		handler: async () => {
-			incrementBooty(roll()+roll(), filterAvailable(availableCrew));
+			incrementBooty(roll()+roll(), filterAvailable(crew));
 			shipVoyageFlags.add('curse');
 			return { continueText:'Damn our greedy pirate ways!', description:'The Booty is cursed and may cause trouble.' };
 		}
@@ -643,7 +643,7 @@ const seaEncounterTable = [
 			]);
 			switch(choice) {
 				case 0:
-					let salvageable = await filterNonScared(crew).filter(pirate => !pirate.captain);
+					let salvageable = (await filterNonScared(crew)).filter(pirate => !pirate.captain);
 					let saved = null;
 					if(salvageable.length) {
 						saved = await getChoice('Which crew member should be saved?', pirateOptions(salvageable));

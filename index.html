@@ -53,6 +53,10 @@
 			padding: 1rem .25rem;
 			width: 15rem;
 		}
+		#debug-options i {
+			cursor: pointer;
+			margin: 0 .25em;
+		}
 		@font-face {
 			font-family: Lugrasimo;
 			src: url("Lugrasimo/Lugrasimo-Regular.ttf") format("truetype");
@@ -71,6 +75,12 @@
 		</span>
 		<span id="stash" style="margin-right:1rem; display:none;"><i class="fas fa-piggy-bank"></i> <span id="stashed-booty">0</span></span>
 		<span style="margin-right:1rem;"><i class="far fa-compass"></i> <span id="heading">Island</span></span>
+	</span>
+	<span id="debug-options" style="display:none; margin-left:auto;">
+		<i id="debug-enabled" class="fas fa-bug" onclick="setDebug(false)"></i>
+		<i id="fast-forward" class="fas fa-fast-forward" onclick="toggleFastForward()"></i>
+		<i id="choose-rolls" class="fas fa-list-alt" onclick="toggleChooseRolls()"></i>
+		<i id="auto" class="fas fa-robot" onclick="toggleAutoPlay()"></i>
 	</span>
 	<span id="time" style="margin-left:auto;">
 		<i id="time-pause" class="fas fa-pause" style="display:none;" onclick="pause()"></i>
@@ -103,7 +113,7 @@
 				</div>
 				<div class="port-action">
 					<div>Recruit new crew member for 1 Booty and 1 Grog</div>
-					<button id="recruit-button" onclick="recruitPirate(event)" style="margin-top:1rem;">Recruit</button>
+					<button id="recruit-button" onclick="recruitPirateButtonPressed(event)" style="margin-top:1rem;">Recruit</button>
 				</div>
 				<div class="port-action">
 					<div>Buy mansion for 300 Booty (thereby winning the game)</div>
@@ -210,6 +220,10 @@
 <script src="island-exploration.js"></script>
 <script src="port-happenings.js"></script>
 <script>
+let DEBUG_MODE = false;
+let AUTO = false;
+let LOG_SPEED = 1600;
+let CHOOSE_ROLLS = false;
 
 function inflate(html) {
 	var template = document.createElement('template');
@@ -224,6 +238,43 @@ function clear(el) {
 	}
 }
 
+function setDebug(enabled) {
+	DEBUG_MODE = enabled;
+	if(enabled) {
+		localStorage.setItem('blood4booty-debug', JSON.stringify({auto:AUTO, speed:LOG_SPEED, chooseRolls:CHOOSE_ROLLS}));
+	} else {
+		localStorage.removeItem('blood4booty-debug');
+		AUTO = false;
+		LOG_SPEED = 1600;
+		CHOOSE_ROLLS = false;
+	}
+	document.getElementById('debug-options').style.display = DEBUG_MODE ? 'inline' : 'none';
+}
+
+function toggleFastForward() {
+	let toggle = document.getElementById('fast-forward');
+	if(LOG_SPEED == 1600) {
+		LOG_SPEED = 500;
+		toggle.style.opacity = 1;
+	} else {
+		LOG_SPEED = 1600;
+		toggle.style.opacity = .5;
+	}
+	setDebug(true);
+}
+
+function toggleChooseRolls() {
+	CHOOSE_ROLLS = !CHOOSE_ROLLS;
+	document.getElementById('choose-rolls').style.opacity = CHOOSE_ROLLS ? 1 : .5;
+	setDebug(true);
+}
+
+function toggleAutoPlay() {
+	AUTO = !AUTO;
+	document.getElementById('auto').style.opacity = AUTO ? 1 : .5;
+	setDebug(true);
+}
+
 function toggleAutoSave() {
 	if(autoSave === undefined) {
 		return;
@@ -233,23 +284,15 @@ function toggleAutoSave() {
 	autoSaveIcon.style.color = autoSave ? '#b00' : 'white';
 }
 
-async function recruitPirate(event) {
-	if(grog >= 1 && booty >= 1) {
-		incrementGrog(-1);
-		incrementBooty(-1);
-		event.target.disabled = true;
-		await rollPirate();
-		updateTradableBooty(-1);
+async function recruitPirateButtonPressed(event) {
+	event.target.disabled = true;
+	event.target.blood4booty = { inProgress:true };
+	let recruited = await recruitPirate();
+	if(recruited) {
 		switchInterface('port');
 	}
+	event.target.blood4booty.inProgress = false;
 	event.target.disabled = false;
-}
-
-function devilsFistForGrog() {
-	if(devilsFist) {
-		devilsFist--;
-		incrementGrog(Math.floor(50 / getGrogPrice()));
-	}
 }
 
 function updateNumberSelect(element) {
@@ -595,6 +638,9 @@ function updatePirateView(pirate) {
 }
 
 async function waitForPirateView() {
+	if(AUTO) {
+		return new Promise(res => res());
+	}
 	let button = document.getElementById('pirate-view-done');
 	return new Promise((resolve, reject) => {
 		let listenerName = 'click';
@@ -812,7 +858,7 @@ function updateTopBar() {
 }
 
 async function addToLog(message) {
-	let wait = DEBUG_MODE ? 200 : 2000;
+	let wait = LOG_SPEED;
 	return new Promise(resolve => {
 		let alreadyPaused = paused;
 		if(!autoPlay && !alreadyPaused) {
@@ -880,30 +926,18 @@ function switchInterface(interface) {
 }
 
 function updatePort() {
-	let maxTradeAmount = tradableBooty === null ? Infinity : tradableBooty;
+	let maxTradeAmount = getMaxTradeAmount();
 	// initial setup
 	if(!document.getElementById('grog-purchase-selector')) {
-		let grogAmountSelector = prepareNumberSelect('grog-purchase-selector', 'Buy', purchaseCount => {
-			let bootyDeficit = -Math.ceil(getGrogPrice()*purchaseCount);
-			incrementBooty(bootyDeficit);
-			incrementGrog(purchaseCount);
-			updateTradableBooty(bootyDeficit);
-		});
+		let grogAmountSelector = prepareNumberSelect('grog-purchase-selector', 'Buy', purchaseGrog);
 		document.getElementById('grog-purchase').after(grogAmountSelector);
 	}
 	let stashContainer = document.getElementById('stash-inputs');
 	if(stashContainer.children.length == 0) {
-		let select = prepareNumberSelect('stash-deposit', 'Deposit', value => {
-			incrementBooty(-value);
-			incrementStashedBooty(value);
-			updateTradableBooty(-value);
-		});
+		let select = prepareNumberSelect('stash-deposit', 'Deposit', depositBooty);
 		select.style.marginTop = '1rem';
 		stashContainer.appendChild(select);
-		select = stashContainer.appendChild(prepareNumberSelect('stash-withdraw', 'Withdraw', value => {
-			incrementStashedBooty(-value);
-			incrementBooty(value, []);
-		}));
+		select = stashContainer.appendChild(prepareNumberSelect('stash-withdraw', 'Withdraw', withdrawBooty));
 		select.style.marginTop = '1rem';
 		stashContainer.appendChild(select);
 	}
@@ -912,26 +946,42 @@ function updatePort() {
 	document.getElementById('grog-price').textContent = grogPrice.toString();
 	// grog purchase selector
 	let selector = document.getElementById('grog-purchase-selector');
-	selector.blood4booty.limits.max = Math.min(maxTradeAmount, shipWeeklyFlags.has('no_grog_sale') ? 0 : (booty / grogPrice));
+	selector.blood4booty.limits.max = getMaxGrogPurchase();
 	updateNumberSelect(selector);
 	let devilsFistBuyButton = document.getElementById('devils-fist-buy-grog')
 	devilsFistBuyButton.style.display = devilsFist ? 'inline' : 'none';
-	devilsFistBuyButton.disabled = maxTradeAmount != Infinity || shipWeeklyFlags.has('no_grog_sale');
+	devilsFistBuyButton.disabled = !canPurchaseGrogWithDevilsFist();
 	// stash selectors
 	selector = document.getElementById('stash-deposit');
-	selector.blood4booty.limits.max = Math.min(maxTradeAmount, booty);
+	selector.blood4booty.limits.max = getMaxDeposit();
 	updateNumberSelect(selector);
 	selector = document.getElementById('stash-withdraw');
 	selector.blood4booty.limits.max = stashedBooty;
 	updateNumberSelect(selector);
 	// buttons
-	document.getElementById('recruit-button').disabled = booty < 1 || grog < 1;
-	document.getElementById('win-button').disabled = booty + 50*devilsFist < 300;
+	let recruitButton = document.getElementById('recruit-button')
+	recruitButton.disabled = booty < 1 || grog < 1 || recruitButton.blood4booty?.inProgress;
+	document.getElementById('win-button').disabled = !canWin();
 }
 
 async function doPortActions() {
 	updatePort();
 	switchInterface('port');
+	if(AUTO) {
+		withdrawBooty(stashedBooty);
+		win();
+		devilsFistForGrog();
+		let targetCrewSize = Math.min(9, Math.floor((grog + booty) / 5));
+		while(booty && grog && crew.length < targetCrewSize) {
+			await recruitPirate();
+		}
+		let grogToPurchase = crew.length * 5 - grog;
+		if(grogToPurchase > 0) {
+			purchaseGrog(grogToPurchase);
+		}
+		depositBooty(booty);
+		return new Promise(res => res());
+	}
 	let button = document.getElementById('finished-port-button');
 	return new Promise((resolve, reject) => {
 		let listenerName = 'click';
@@ -943,6 +993,7 @@ async function doPortActions() {
 		button.addEventListener(listenerName, listener);
 	});
 }
+
 function updateEventText(prompt, description) {
 	let promptEl = document.getElementById('prompt');
 	promptEl.textContent = prompt;
@@ -956,6 +1007,10 @@ async function getNumberInput(prompt, description, confirmText, min, max) {
 	updateOptions(null);
 	updateEventText(prompt, description);
 	return new Promise((resolve, reject) => {
+		if(AUTO) {
+			resolve(Math.floor(Math.random() * (max - min) + min));
+			return;
+		}
 		let button = document.getElementById('continue-button');
 		button.style.display = 'none';
 		let optionHolder = document.getElementById('options');
@@ -1031,10 +1086,10 @@ async function doAction(prompt, description, continueText, options, singleSelect
 }
 
 async function getChoice(prompt, options, min=1, max=1) {
-	let auto = false;
-	if(auto || (max == min && options.length == max)) {
+	let exactlyOne = max == 1 && min == 1;
+	if(AUTO || (max == min && options.length == max)) {
 		let number = min;
-		if(auto) {
+		if(AUTO) {
 			number = randomInt(max+1-min)+min;
 		}
 		let selected = [];
@@ -1042,9 +1097,8 @@ async function getChoice(prompt, options, min=1, max=1) {
 			selected.push(randomResult(options, selected));
 		}
 		let values = selected.map(opt => opt.value);
-		return number == 1 ? values[0] : values;
+		return exactlyOne ? values[0] : values;
 	}
-	let exactlyOne = max == 1 && min == 1;
 	await doAction(
 		prompt, '', 'Confirm',
 		options, exactlyOne,
@@ -1061,16 +1115,67 @@ async function getChoice(prompt, options, min=1, max=1) {
 async function doJobAssignments() {
 	updateJobLists();
 	switchInterface('job');
-	let button = document.getElementById('finished-assignment-button');
-	return new Promise((resolve, reject) => {
-		let listenerName = 'click';
-		let listener = event => {
-			switchInterface();
-			button.removeEventListener(listenerName, listener);
-			resolve();
-		};
-		button.addEventListener(listenerName, listener);
-	});
+	if(!AUTO) {
+		let button = document.getElementById('finished-assignment-button');
+		return new Promise((resolve, reject) => {
+			let listenerName = 'click';
+			let listener = event => {
+				switchInterface();
+				button.removeEventListener(listenerName, listener);
+				resolve();
+			};
+			button.addEventListener(listenerName, listener);
+		});
+	}
+	let scoreAssignments = assignments => {
+		let captainMadnessPenalty = false;
+		let score = 0;
+		for(let i=0; i<3; i++) {
+			let workers = filterWorkers(assignments[i]);
+			score += Math.min(i == 0 ? 2 : 4, workers.length);
+			if(i==0 && !workers.some(p => !p.captain)) {
+				captainMadnessPenalty = true;
+			}
+		}
+		if(captainMadnessPenalty) {
+			score *= .8;
+		}
+		return score;
+	};
+	let bestScore = scoreAssignments([
+		crew.filter(p => p.job == 'helm'),
+		crew.filter(p => p.job == 'deck'),
+		crew.filter(p => p.job == 'sails'),
+	]);
+	let bestAssignments = null;
+	for(let i=0; i<30; i++) {
+		let jobs = [
+			{ id:'helm', target:1, assigned:[getCaptain()] },
+			{ id:'deck', target:Math.floor((crew.length - 2) / 2) + 1, assigned:[] },
+			{ id:'sails', target:Math.ceil((crew.length - 2) / 2) + 1, assigned:[] },
+			{ id:'unassigned', target:1, assigned:[] },
+		];
+		let toAssign = crew.filter(p => !p.captain);
+		while(toAssign.length) {
+			let pirate = randomResult(toAssign);
+			toAssign = toAssign.filter(p => p != pirate);
+			let job = randomResult(jobs.filter(j => j.target > 0));
+			job.assigned.push(pirate);
+			job.target--;
+		}
+		let score = scoreAssignments(jobs.map(j => j.assigned));
+		if(score >= bestScore) {
+			bestScore = score;
+			bestAssignments = jobs;
+		}
+	}
+	if(bestAssignments) {
+		for(let job of bestAssignments) {
+			for(let pirate of job.assigned) {
+				assignPirateToJob(pirate, job);
+			}
+		}
+	}
 }
 
 function pirateToOption(pirate, selected = false) {
@@ -1083,10 +1188,12 @@ function pirateOptions(pirateGroup) {
 
 async function showEvent(event, type, arg) {
 	let logPromise = addToLog(`${type}: ${event.name}`);
-	await doAction(event.name, event.description || '', event.continueText);
+	if(!AUTO) {
+		await doAction(event.name, event.description || '', event.continueText);
+	}
 	let result = await event.handler(arg);
 	await logPromise;
-	if(result && result.description) {
+	if(!AUTO && result && result.description) {
 		await doAction(event.name, result.description, result.continueText);
 	}
 }
@@ -1137,7 +1244,22 @@ jobs.forEach((job, i) => {
 if(localStorage.getItem('blood4booty-saved-game')) {
 	document.getElementById('load-button').style.display = 'inline';
 }
-DEBUG_MODE = !!localStorage.getItem('blood4booty-debug');
+let debugOpts = JSON.parse(localStorage.getItem('blood4booty-debug'));
+if(debugOpts) {
+	toggleAutoPlay();
+	toggleFastForward();
+	toggleChooseRolls();
+	if(AUTO != debugOpts.auto) {
+		toggleAutoPlay();
+	}
+	if(LOG_SPEED != debugOpts.speed) {
+		toggleFastForward();
+	}
+	if(CHOOSE_ROLLS != debugOpts.chooseRolls) {
+		toggleChooseRolls();
+	}
+	setDebug(true);
+}
 
 // the one UI global
 mobileView = false;

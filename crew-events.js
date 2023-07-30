@@ -281,7 +281,10 @@ const crewEventTable = [
 		continueText: 'Get boxing',
 		handler: async () => {
 			let boxed = (await filterNonScared(crew)).filter(pirate => roll(pirate) == 1);
-			boxed.forEach(pirate => pirate.voyageFlags.add('boxed'));
+			for(let pirate of boxed) {
+				pirate.voyageFlags.add('boxed');
+				await addToLog(`${getPirateName(pirate)} was locked in a box`);
+			}
 			if(!boxed.length) {
 				return { continueText:'How fortunate', description:'Everyone manages to escape being boxed.' };
 			} else {
@@ -389,7 +392,7 @@ const crewEventTable = [
 			);
 			if(!dismembered.length) {
 				let result = incrementBooty(-roll()-roll());
-				return { continueText:'Such an incompetent crew!', description:`Nobody is gangrenous`+ result ? `, but ${-result} Booty is lost in a loading accident.` : '.' };
+				return { continueText:'Such an incompetent crew!', description:`Nobody is gangrenous`+(result ? `, but ${-result} Booty is lost in a loading accident.` : '.') };
 			} else {
 				let choice = await getChoice('Which pirate contracted gangrene?', pirateOptions(dismembered));
 				choice.voyageFlags.add('gangrenous');
@@ -505,7 +508,7 @@ const crewEventTable = [
 		name: 'Mutiny',
 		description: 'One pirate decides they could do a better job of running the ship.',
 		continue: 'Commence mutiny',
-		handler: async () => await mutiny(randomResult())
+		handler: async () => await mutiny(randomResult(await filterDangerousEventActors(crew))),
 	},
 	{
 		name: 'Argument',

@@ -1,4 +1,3 @@
-let DEBUG_MODE = false;
 async function chooseManuallyFromTable(msg, table) {
 	return table[await getChoice(msg, table.map((item, i) => ({ value:i, text:item.name })))];
 }
@@ -135,6 +134,82 @@ function updateTradableBooty(bootyDeficit) {
 
 function getGrogPrice() {
 	return shipWeeklyFlags.has('half_grog_cost') ? .5 : 1;
+}
+
+function getMaxTradeAmount() {
+	return tradableBooty === null ? Infinity : tradableBooty;
+}
+
+function getMaxGrogPurchase() {
+	return Math.min(getMaxTradeAmount(), shipWeeklyFlags.has('no_grog_sale') ? 0 : (booty / getGrogPrice()));
+}
+
+function canPurchaseGrogWithDevilsFist() {
+	return devilsFist && getMaxTradeAmount() == Infinity && !shipWeeklyFlags.has('no_grog_sale');
+}
+
+function getMaxDeposit() {
+	return Math.min(getMaxTradeAmount(), booty);
+}
+
+function purchaseGrog(purchase) {
+	let purchaseCount = Math.min(purchase, getMaxGrogPurchase());
+	let bootyDeficit = -Math.ceil(getGrogPrice()*purchaseCount);
+	incrementBooty(bootyDeficit);
+	incrementGrog(purchaseCount);
+	updateTradableBooty(bootyDeficit);
+}
+
+function devilsFistForGrog() {
+	if(canPurchaseGrogWithDevilsFist()) {
+		devilsFist--;
+		incrementGrog(Math.floor(50 / getGrogPrice()));
+	}
+}
+
+function depositBooty(value) {
+	let deposit = Math.min(value, getMaxDeposit());
+	incrementBooty(-deposit);
+	incrementStashedBooty(deposit);
+	updateTradableBooty(-deposit);
+}
+
+function withdrawBooty(value) {
+	let withdrawal = Math.min(stashedBooty, value);
+	incrementStashedBooty(-withdrawal);
+	incrementBooty(withdrawal, []);
+}
+
+async function recruitPirate() {
+	if(grog >= 1 && booty >= 1) {
+		incrementGrog(-1);
+		incrementBooty(-1);
+		await rollPirate();
+		updateTradableBooty(-1);
+		return true;
+	}
+	return false;
+}
+
+function canWin() {
+	return booty + 50*devilsFist >= 300;
+}
+
+async function win() {
+	if(!canWin()) {
+		return;
+	}
+	let devilsFistsToSpend = Math.min(6, devilsFist);
+	let toSpend = 300 - devilsFistsToSpend * 50;
+	if(toSpend > booty) {
+		return;
+	}
+	devilsFist -= devilsFistsToSpend;
+	incrementBooty(-toSpend);
+	updateTopBar();
+	updateCrewList();
+	await doAction('You won!', 'Congratulations on your successful life of piracy.', 'Play again');
+	beginGame();
 }
 
 function getCaptain() {
@@ -590,7 +665,7 @@ async function doWeek() {
 	// helm
 	await addToLog(`The Captain takes the Helm…`);
 	let helmsmen = filterWorkers(team.helm);
-	if(helmsmen.length < 2 && !shipPermanentFlags.has('broken_mast')) {
+	if(!helmsmen.some(h => !h.captain) && !shipPermanentFlags.has('broken_mast')) {
 		await rollOnCaptainsMadnessTable();
 	}
 	let helmSucceeded = helmsmen.includes(getCaptain());
@@ -603,7 +678,7 @@ async function doWeek() {
 			await addToLog(`We are on course`);
 		} else {
 			let helmRoll = roll();
-			if(DEBUG_MODE) {
+			if(CHOOSE_ROLLS) {
 				helmRoll = await chooseDieRollManually('Helm roll', n => n > 3 ? 'succeed' : 'fail');
 			}
 			headingToIsland = helmRoll > 3;
@@ -616,7 +691,7 @@ async function doWeek() {
 	let deckhands = filterWorkers(team.deck);
 	await addToLog(`The crew on the Decks get to work…`);
 	let result = roll();
-	if(DEBUG_MODE) {
+	if(CHOOSE_ROLLS) {
 		result = await chooseDieRollManually('Deck job roll', n => (n == 1 || n+deckhands.length) < 6 ? 'fail' : 'succeed');
 	}
 	if(result > 1) {
@@ -625,7 +700,7 @@ async function doWeek() {
 	if(result < 6) {
 		await addToLog(`Decks running poorly. Something bad may happen…`);
 		let event = randomResult(crewEventTable);
-		if(DEBUG_MODE) {
+		if(CHOOSE_ROLLS) {
 			event = await chooseManuallyFromTable('Choose Crew Event', crewEventTable);
 		}
 		await showEvent(event, 'Crew Event');
@@ -636,7 +711,7 @@ async function doWeek() {
 	let sailors = filterWorkers(team.sails);
 	await addToLog(`The crew set Sail…`);
 	result = roll();
-	if(DEBUG_MODE) {
+	if(CHOOSE_ROLLS) {
 		result = await chooseDieRollManually('Sails job roll', n => (n == 1 || n+sailors.length < 6) ? 'fail' : 'succeed');
 	}
 	if(result > 1) {
@@ -662,7 +737,7 @@ async function doWeek() {
 		// still at sea
 		await addToLog(`No land in sight`);
 		let event = randomResult(seaEncounterTable);
-		if(DEBUG_MODE) {
+		if(CHOOSE_ROLLS) {
 			event = await chooseManuallyFromTable('Choose Sea Encounter', seaEncounterTable);
 		}
 		await showEvent(event, 'Sea Encounter');
@@ -725,7 +800,7 @@ async function doWeek() {
 				let explorers = filterExplorers();
 				// get event
 				let event = randomResult(islandExplorationTable);
-				if(DEBUG_MODE) {
+				if(CHOOSE_ROLLS) {
 					event = await chooseManuallyFromTable('Choose Island', islandExplorationTable);
 				}
 				if(shipPermanentFlags.has('treasure_map')) {
@@ -785,6 +860,7 @@ async function doWeek() {
 			// barnacles
 			if(shipPermanentFlags.has('barnacles') && booty >= 3) {
 				incrementBooty(-3);
+				shipPermanentFlags.delete('barnacles');
 				await addToLog(`Barnacles removed`);
 			}
 			// homesickness
@@ -867,7 +943,7 @@ async function doWeek() {
 			crew.forEach(pirate => pirate.voyageFlags.clear());
 			// happening
 			let happening = randomResult(portHappeningTable);
-			if(DEBUG_MODE) {
+			if(CHOOSE_ROLLS) {
 				happening = await chooseManuallyFromTable('Choose Port Happening', portHappeningTable);
 			}
 			if(eventReRollable) {
@@ -883,7 +959,8 @@ async function doWeek() {
 			if(!shipWeeklyFlags.has('skip_port_actions')) {
 				let crewNeedingNecessities = crew.filter(p => !p.weeklyFlags.has('striking'));
 				let necessityCost = shipWeeklyFlags.has('no_port_cost') ? 0 : (shipWeeklyFlags.has('double_port_cost') ? 2 : 1);
-				incrementBooty(-crewNeedingNecessities.length * necessityCost);
+				let spent = incrementBooty(-crewNeedingNecessities.length * necessityCost);
+				await addToLog(`The crew spent ${-spent} Booty on necessities`);
 				// handle backstabber
 				let backstabber = filterByAttr(crew, legend.backstabber)[0];
 				if(backstabber) {
@@ -1000,11 +1077,16 @@ async function playGame() {
 	} catch(e) {
 		if(e.message == 'NO_CREW') {
 			updateCrewList();
-			await doAction('Game Over', 'With no more crew, your pirate journey is over.', 'Restart');
+			if(!AUTO) {
+				await doAction('Game Over', 'With no more crew, your pirate journey is over.', 'Restart');
+			}
 			beginGame();
 		} else {
 			console.error(e);
-			await doAction('Something went wrong', 'Looks like we got a software bug here.', 'Attempt to recover');
+			await doAction('Something went wrong',
+				DEBUG_MODE ? e.stack : 'Looks like we got a software bug here.',
+				'Attempt to recover'
+			);
 			playGame();
 		}
 	}
@@ -1024,17 +1106,6 @@ function setPaused(state) {
 	paused = state;
 	updateTopBar();
 	updateCrewList();
-}
-
-async function win() {
-	let devilsFistsToSpend = Math.min(6, devilsFist);
-	let toSpend = 300 - devilsFistsToSpend * 50;
-	devilsFist -= devilsFistsToSpend;
-	incrementBooty(-toSpend);
-	updateTopBar();
-	updateCrewList();
-	await doAction('You won!', 'Congratulations on your successful life of piracy.', 'Play again');
-	beginGame();
 }
 
 function serializeGameState() {
@@ -1078,15 +1149,6 @@ function serializeGameState() {
 		shipVoyageFlags: Array.from(shipVoyageFlags),
 		shipPermanentFlags: Array.from(shipPermanentFlags),
 	});
-}
-
-function setDebug(enabled) {
-	DEBUG_MODE = enabled;
-	if(enabled) {
-		localStorage.setItem('blood4booty-debug', 'yes');
-	} else {
-		localStorage.removeItem('blood4booty-debug');
-	}
 }
 
 function loadGameState(saved) {
