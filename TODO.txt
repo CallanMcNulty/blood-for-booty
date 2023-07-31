@@ -1,5 +1,5 @@
 - Explanation tutorial text (what does each job do?)
-- Investigate bug with legendary pirate status not being conferred after restart
+- Bug: Legendary pirate status not being conferred after restart
 	- Additional symptom: After save and re-load, legend status was granted and captainship shifted to legendary pirate
 - Better support for Killer
 	- More logs

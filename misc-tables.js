@@ -49,7 +49,7 @@ const pirateFlagText = {
 	whale_obsession: { name:'White Whale Obsession', description:'While captaining the ship, will chase the white whale without stopping anywhere else until it is caught.' },
 	caver: { name:'Caver', description:'On islands they prefer to wander around in caves instead of exploring.' },
 	fated: { name:'Drank from Fate Fountain', description:'They have the power to alter fate.' },
-	glimpsed_hell: { name:'Glimpsed Hell', description:'Caught a glimpse of Pirate Hell and decided to become a priest.' },
+	glimpsed_hell: { name:'Glimpsed Hell', description:'Found religion after glimpsing Pirate Hell.' },
 	scurvy: { name:'Scurvy', description:'This pirate has a vitamin deficiency and will die if their scurvy flares up again.' },
 	beard_lice: { name:'Beard Lice', description:'Nobody wants to work with a lousy pirate.' },
 	boxed: { name:'In a Box', description:'They are trapped in a box and can’t do anything.' },

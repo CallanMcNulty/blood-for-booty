@@ -470,16 +470,16 @@ async function rollPirate(withSkills=true, defaultFemale=null) {
 	newPirate.colors = [skinColor, hairColor, shirtColor, pantsColor];
 	newPirate.hair = randomResult(newPirate.female ? femaleHairstyles : maleHairstyles);
 	// mechanical stuff
+	pirates.push(newPirate);
+	await addPirateToCrew(newPirate);
+	if(withSkills) {
+		await rollSkill(newPirate);
+	}
 	if(
 		crew.some(pirate => pirate.permanentFlags.has('hook_club')) &&
 		(hasAttribute(newPirate, feature.hook) || hasAttribute(newPirate, feature.leftHook))
 	) {
 		newPirate.permanentFlags.add('hook_club');
-	}
-	pirates.push(newPirate);
-	await addPirateToCrew(newPirate);
-	if(withSkills) {
-		await rollSkill(newPirate);
 	}
 	return newPirate;
 }
@@ -788,6 +788,9 @@ async function doWeek() {
 				shipWeeklyFlags.delete('turtle_transport');
 				// choose explorers
 				let options = filterAvailable(crew).filter(p => !p.permanentFlags.has('caver')).map(w => pirateToOption(w, w.explorer));
+				if(!options.length) {
+					break;
+				}
 				let chosenExplorers = await getChoice(
 					'We’ve reached an Island. Who should be on the exploration team?', options, 1, options.length
 				);
@@ -879,7 +882,7 @@ async function doWeek() {
 			// saw hell
 			let clergyBound = crew.filter(pirate => pirate.permanentFlags.has('glimpsed_hell'));
 			for(let p of clergyBound) {
-				await kill(p, 'left the pirate life to become a priest', false);
+				await kill(p, `left the pirate life to become a ${p.female ? 'nun' : 'priest'}`, false);
 			}
 			// jail
 			let jailbirds = crew.filter(pirate => pirate.voyageFlags.has('in_jail') && pirate.alive);

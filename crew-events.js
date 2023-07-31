@@ -199,7 +199,7 @@ const crewEventTable = [
 			if(hookies.length) {
 				let existingHookClub = crew.filter(pirate => pirate.permanentFlags.has('hook_club'));
 				if(!existingHookClub.length) {
-					newMembers = hookies;
+					newMembers = [...hookies];
 					let founder = randomResult(hookies);
 					await addToLog(`${getPirateName(founder)} founded Hook Club`);
 				}

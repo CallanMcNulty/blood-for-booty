@@ -248,31 +248,33 @@ function setDebug(enabled) {
 		LOG_SPEED = 1600;
 		CHOOSE_ROLLS = false;
 	}
-	document.getElementById('debug-options').style.display = DEBUG_MODE ? 'inline' : 'none';
+	updateDebugMenu();
 }
 
 function toggleFastForward() {
-	let toggle = document.getElementById('fast-forward');
 	if(LOG_SPEED == 1600) {
 		LOG_SPEED = 500;
-		toggle.style.opacity = 1;
 	} else {
 		LOG_SPEED = 1600;
-		toggle.style.opacity = .5;
 	}
-	setDebug(true);
+	updateDebugMenu();
 }
 
 function toggleChooseRolls() {
 	CHOOSE_ROLLS = !CHOOSE_ROLLS;
-	document.getElementById('choose-rolls').style.opacity = CHOOSE_ROLLS ? 1 : .5;
-	setDebug(true);
+	updateDebugMenu();
 }
 
 function toggleAutoPlay() {
 	AUTO = !AUTO;
+	updateDebugMenu();
+}
+
+function updateDebugMenu() {
+	document.getElementById('debug-options').style.display = DEBUG_MODE ? 'inline' : 'none';
+	document.getElementById('fast-forward').style.opacity = LOG_SPEED == 1600 ? .5 : 1;
+	document.getElementById('choose-rolls').style.opacity = CHOOSE_ROLLS ? 1 : .5;
 	document.getElementById('auto').style.opacity = AUTO ? 1 : .5;
-	setDebug(true);
 }
 
 function toggleAutoSave() {
@@ -292,7 +294,7 @@ async function recruitPirateButtonPressed(event) {
 		switchInterface('port');
 	}
 	event.target.blood4booty.inProgress = false;
-	event.target.disabled = false;
+	updatePort();
 }
 
 function updateNumberSelect(element) {
@@ -948,7 +950,7 @@ function updatePort() {
 	let selector = document.getElementById('grog-purchase-selector');
 	selector.blood4booty.limits.max = getMaxGrogPurchase();
 	updateNumberSelect(selector);
-	let devilsFistBuyButton = document.getElementById('devils-fist-buy-grog')
+	let devilsFistBuyButton = document.getElementById('devils-fist-buy-grog');
 	devilsFistBuyButton.style.display = devilsFist ? 'inline' : 'none';
 	devilsFistBuyButton.disabled = !canPurchaseGrogWithDevilsFist();
 	// stash selectors
@@ -959,7 +961,7 @@ function updatePort() {
 	selector.blood4booty.limits.max = stashedBooty;
 	updateNumberSelect(selector);
 	// buttons
-	let recruitButton = document.getElementById('recruit-button')
+	let recruitButton = document.getElementById('recruit-button');
 	recruitButton.disabled = booty < 1 || grog < 1 || recruitButton.blood4booty?.inProgress;
 	document.getElementById('win-button').disabled = !canWin();
 }
@@ -1246,18 +1248,9 @@ if(localStorage.getItem('blood4booty-saved-game')) {
 }
 let debugOpts = JSON.parse(localStorage.getItem('blood4booty-debug'));
 if(debugOpts) {
-	toggleAutoPlay();
-	toggleFastForward();
-	toggleChooseRolls();
-	if(AUTO != debugOpts.auto) {
-		toggleAutoPlay();
-	}
-	if(LOG_SPEED != debugOpts.speed) {
-		toggleFastForward();
-	}
-	if(CHOOSE_ROLLS != debugOpts.chooseRolls) {
-		toggleChooseRolls();
-	}
+	AUTO = debugOpts.auto;
+	LOG_SPEED = debugOpts.speed;
+	CHOOSE_ROLLS = debugOpts.chooseRolls;
 	setDebug(true);
 }
 
