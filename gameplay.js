@@ -718,6 +718,7 @@ async function doWeek() {
 		result += sailors.length;
 	}
 	if(shipPermanentFlags.has('mast_rot')) {
+		await addToLog(`The damaged mast impedes progress`);
 		result -= 2;
 	}
 	let destinationReached = false;
@@ -728,8 +729,10 @@ async function doWeek() {
 			let navResult = roll();
 			if(navResult == 1) {
 				destinationReached = false;
-			} else if(navResult == 1) {
+				await addToLog(`The ship is lost in the mist`);
+			} else if(navResult == 2) {
 				headingToIsland = !headingToIsland;
+				await addToLog(`We think we can spot land through the mist`);
 			}
 			shipVoyageFlags.delete('uncertain_navigation');
 		}

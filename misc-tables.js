@@ -24,7 +24,7 @@ const legend = {
 
 const feature = {
 	noNose: { name: 'No Nose', description:'No nose? Then how do they smell? Terrible.' },
-	blind: { name: 'Blind', description:'When an eyepatch doesn’t cut it anymore.' },
+	blind: { name: 'Blind', description:'Sometimes an eyepatch doesn’t cut it anymore.' },
 	parrot: { name: 'Parrot', description:'Better stay stocked up on crackers.' },
 	toothless: { name: 'Toothless', description:'No good dentists on a pirate ship.' },
 	eyepatch: { name: 'Eyepatch', description:'Classic.' },
@@ -38,7 +38,7 @@ const feature = {
 	rat: { name: 'Rat', description:'An unexpected friend.' },
 	crab: { name: 'Crab', description:'A pet crab? Oh, how… cute.' },
 	prettyDress: { name: 'Pretty Dress', description:'How chic!' },
-	crocophobia: { name: 'Crocophobia', description:'If the crew ever come across crocs again this pirate will keel over and die from fear.' },
+	crocophobia: { name: 'Crocophobia', description:'If the crew ever comes across crocs again, this pirate will keel over and die from fear.' },
 };
 
 const pirateFlagText = {
@@ -54,10 +54,10 @@ const pirateFlagText = {
 	beard_lice: { name:'Beard Lice', description:'Nobody wants to work with a lousy pirate.' },
 	boxed: { name:'In a Box', description:'They are trapped in a box and can’t do anything.' },
 	gangrenous: { name:'Gangrenous', description:'They are in too much pain to do anything.' },
-	homesick: { name:'Homesick', description:'While captain this pirate will head directly to port and spend Booty on luxuries.' },
+	homesick: { name:'Homesick', description:'While captain, this pirate will head directly to port and spend Booty on luxuries.' },
 	ate_bad_fruit: { name:'Ate Bad Fruit', description:'This pirate will be sickly for a time.' },
 	no_heading_change: { name:'Unwilling to Change Heading', description:'This pirate has a goal and will not change heading while they are the captain.' },
-	as_seasick: { name:'Sickly', description:'May be to sick to work some weeks.' },
+	as_seasick: { name:'Sickly', description:'May be too sick to work some weeks.' },
 };
 
 const shipFlagText = {

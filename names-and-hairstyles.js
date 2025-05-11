@@ -565,10 +565,6 @@ const maleHairstyles = [
 		parts: ['hair-base', 'hair-poof'],
 	},
 	{
-		tag: 'curly-top',
-		parts: ['hair-base', 'hair-poof'],
-	},
-	{
 		tag: 'curly-top-shaved-sides',
 		parts: ['hair-poof'],
 	},

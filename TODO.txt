@@ -4,5 +4,6 @@
 - Better support for Killer
 	- More logs
 	- Verify that mid-event deaths don't break anything
+- Character visual customization
 - Download save game
 - Download/save log history
